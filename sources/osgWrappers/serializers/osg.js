@@ -6,7 +6,7 @@ define( [
 
     osgWrapper.Object = function ( input, obj ) {
         var jsonObj = input.getJSON();
-        var check = function ( /*o*/ ) {
+        var check = function ( /*o*/) {
             return true;
         };
         if ( !check( jsonObj ) ) {
@@ -30,7 +30,7 @@ define( [
     osgWrapper.Node = function ( input, node ) {
         var jsonObj = input.getJSON();
 
-        var check = function ( /*o*/ ) {
+        var check = function ( /*o*/) {
             return true;
         };
         if ( !check( jsonObj ) ) {
@@ -73,32 +73,33 @@ define( [
         var createChildren = function ( jsonChildren ) {
             var promise = input.setJSON( jsonChildren ).readObject();
             var df = Q.defer();
-            promiseArray.push( df.promise );
             Q.when( promise ).then( function ( obj ) {
-                if ( obj ) {
-                    node.addChild( obj );
-                }
                 df.resolve( obj );
             } );
+            return df.promise;
         };
 
-        if ( jsonObj.Children ) {
-            for ( var i = 0, k = jsonObj.Children.length; i < k; i++ ) {
-                createChildren( jsonObj.Children[ i ] );
-            }
-        }
+        var queue = [];
+        // For each url, create a function call and add it to the queue
+        jsonObj.Children.forEach( function ( jsonChildren ) {
+            queue.push( createChildren( jsonChildren ) );
+        } );
 
         var defer = Q.defer();
-        Q.all( promiseArray ).then( function () {
+        Q.all( queue ).then( function () {
+            // All the results from Q.all are on the argument as an array
+            for ( var i = 0; i < queue.length; i++ )
+                node.addChild( queue[ i ] );
             defer.resolve( node );
         } );
 
         return defer.promise;
+
     };
 
     osgWrapper.StateSet = function ( input, stateSet ) {
         var jsonObj = input.getJSON();
-        var check = function ( /*o*/ ) {
+        var check = function ( /*o*/) {
             return true;
         };
 
@@ -285,7 +286,7 @@ define( [
 
     osgWrapper.Texture = function ( input, texture ) {
         var jsonObj = input.getJSON();
-        var check = function ( /*o*/ ) {
+        var check = function ( /*o*/) {
             return true;
         };
         if ( !check( jsonObj ) ) {
@@ -386,9 +387,9 @@ define( [
         return defer.promise;
     };
 
-    osgWrapper.PagedLOD = function ( input , plod ) {
+    osgWrapper.PagedLOD = function ( input, plod ) {
         var jsonObj = input.getJSON();
-        var check = function ( /*o*/ ) {
+        var check = function ( /*o*/) {
             return true;
         };
         if ( !check( jsonObj ) ) {
@@ -396,10 +397,10 @@ define( [
         }
 
         osgWrapper.Object( input, plod );
-         if (jsonObj.RangeMode ==='PIXEL_SIZE_ON_SCREEN')
-           plod.setRangeMode(1);
+        if ( jsonObj.RangeMode === 'PIXEL_SIZE_ON_SCREEN' )
+            plod.setRangeMode( 1 );
         // Parse file names
-       
+
         var str;
         // Add children if any
         var i;
@@ -407,17 +408,15 @@ define( [
 
         var o = jsonObj.RangeList;
 
-        for (i = 0; i< Object.keys(o).length; i++ )
-        {
-            str ='Range ' + i;
-            var v = o[str];
-            plod.setRange(i, v[0],v[1]);
+        for ( i = 0; i < Object.keys( o ).length; i++ ) {
+            str = 'Range ' + i;
+            var v = o[ str ];
+            plod.setRange( i, v[ 0 ], v[ 1 ] );
         }
         o = jsonObj.RangeDataList;
-        for (i = 0; i< Object.keys(o).length; i++ )
-        {
-            str ='File ' + i;
-                plod.setFileName (i,o[str]);
+        for ( i = 0; i < Object.keys( o ).length; i++ ) {
+            str = 'File ' + i;
+            plod.setFileName( i, o[ str ] );
         }
 
         var createChildren = function ( jsonChildren ) {
@@ -430,20 +429,20 @@ define( [
         };
         var queue = [];
         // For each url, create a function call and add it to the queue
-        jsonObj.Children.forEach(function(jsonChildren) {
-            queue.push(createChildren(jsonChildren));
-        });
-
-        var defer = Q.defer();
-        Q.all(queue).then(function(ful) {
-             // All the results from Q.all are on the argument as an array
-            console.log('fulfilled', ful);
-            for (i =0; i< queue.length;i++)
-                plod.addChildNode(queue[i]);
-            defer.resolve(plod);
+        jsonObj.Children.forEach( function ( jsonChildren ) {
+            queue.push( createChildren( jsonChildren ) );
         } );
 
-    return defer.promise;
+        var defer = Q.defer();
+        Q.all( queue ).then( function ( ful ) {
+            // All the results from Q.all are on the argument as an array
+            console.log( 'fulfilled', ful );
+            for ( i = 0; i < queue.length; i++ )
+                plod.addChildNode( queue[ i ] );
+            defer.resolve( plod );
+        } );
+
+        return defer.promise;
     };
 
     osgWrapper.Geometry = function ( input, node ) {
