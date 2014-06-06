@@ -386,6 +386,66 @@ define( [
         return defer.promise;
     };
 
+    osgWrapper.PagedLOD = function ( input , plod ) {
+        var jsonObj = input.getJSON();
+        var check = function ( /*o*/ ) {
+            return true;
+        };
+        if ( !check( jsonObj ) ) {
+            return undefined;
+        }
+
+        osgWrapper.Object( input, plod );
+         if (jsonObj.RangeMode ==='PIXEL_SIZE_ON_SCREEN')
+           plod.setRangeMode(1);
+        // Parse file names
+       
+        var str;
+        // Add children if any
+        var i;
+        // Parse Ranges
+
+        var o = jsonObj.RangeList;
+
+        for (i = 0; i< Object.keys(o).length; i++ )
+        {
+            str ='Range ' + i;
+            var v = o[str];
+            plod.setRange(i, v[0],v[1]);
+        }
+        o = jsonObj.RangeDataList;
+        for (i = 0; i< Object.keys(o).length; i++ )
+        {
+            str ='File ' + i;
+                plod.setFileName (i,o[str]);
+        }
+
+        var createChildren = function ( jsonChildren ) {
+            var promise = input.setJSON( jsonChildren ).readObject();
+            var df = Q.defer();
+            Q.when( promise ).then( function ( obj ) {
+                df.resolve( obj );
+            } );
+            return df.promise;
+        };
+        var queue = [];
+        // For each url, create a function call and add it to the queue
+        jsonObj.Children.forEach(function(jsonChildren) {
+            queue.push(createChildren(jsonChildren));
+        });
+
+        var defer = Q.defer();
+        Q.all(queue).then(function(ful) {
+             // All the results from Q.all are on the argument as an array
+            console.log('fulfilled', ful);
+            for (i =0; i< queue.length;i++)
+                plod.addChildNode(queue[i]);
+            defer.resolve(plod);
+        } );
+
+    return defer.promise;
+    };
+
     osgWrapper.Geometry = function ( input, node ) {
         var jsonObj = input.getJSON();
         var check = function ( o ) {
