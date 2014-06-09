@@ -426,10 +426,11 @@ define( [
         };
         var queue = [];
         // For each url, create a function call and add it to the queue
-        jsonObj.Children.forEach( function ( jsonChildren ) {
+        if ( jsonObj.Children ) {
+            jsonObj.Children.forEach( function ( jsonChildren ) {
             queue.push( createChildren( jsonChildren ) );
-        } );
-
+            } );
+        }
         var defer = Q.defer();
         Q.all( queue ).then( function ( ) {
             // All the results from Q.all are on the argument as an array
