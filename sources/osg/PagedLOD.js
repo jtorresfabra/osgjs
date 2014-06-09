@@ -31,7 +31,7 @@ define( [
      *  @class PerRangeData
      */
     var PerRangeData = function () {
-        this.filename = undefined;
+        this.filename = '';
         this.function = undefined;
         this.loaded = false;
         this.timeStamp = 0.0;
@@ -139,7 +139,8 @@ define( [
             for ( var i = numChildren - 1; i > 0; i-- ) {
                 //First children never expires
                 var timed = frameStamp.getSimulationTime() - this.perRangeDataList[ i ].timeStamp;
-                if ( timed > this.expiryTime ) {
+                if ( ( timed > this.expiryTime ) && ( this.perRangeDataList[ i ].filename.length > 0 ||
+                                                    this.perRangeDataList[ i ].function !== undefined ) ){
                     if ( i === this.children.length - 1 ) {
                         this.children[ i ].accept( new ReleaseVisitor( gl ) );
                         this.removeChild( this.children[ i ] );

@@ -30,7 +30,7 @@ define( [
     osgWrapper.Node = function ( input, node ) {
         var jsonObj = input.getJSON();
 
-        var check = function ( /*o*/) {
+        var check = function ( /*o*/ ) {
             return true;
         };
         if ( !check( jsonObj ) ) {
@@ -73,28 +73,27 @@ define( [
         var createChildren = function ( jsonChildren ) {
             var promise = input.setJSON( jsonChildren ).readObject();
             var df = Q.defer();
+            promiseArray.push( df.promise );
             Q.when( promise ).then( function ( obj ) {
+                if ( obj ) {
+                    node.addChild( obj );
+                }
                 df.resolve( obj );
             } );
-            return df.promise;
         };
 
-        var queue = [];
-        // For each url, create a function call and add it to the queue
-        jsonObj.Children.forEach( function ( jsonChildren ) {
-            queue.push( createChildren( jsonChildren ) );
-        } );
+        if ( jsonObj.Children ) {
+            for ( var i = 0, k = jsonObj.Children.length; i < k; i++ ) {
+                createChildren( jsonObj.Children[ i ] );
+            }
+        }
 
         var defer = Q.defer();
-        Q.all( queue ).then( function () {
-            // All the results from Q.all are on the argument as an array
-            for ( var i = 0; i < queue.length; i++ )
-                node.addChild( queue[ i ] );
+        Q.all( promiseArray ).then( function () {
             defer.resolve( node );
         } );
 
         return defer.promise;
-
     };
 
     osgWrapper.StateSet = function ( input, stateSet ) {
@@ -395,24 +394,22 @@ define( [
         if ( !check( jsonObj ) ) {
             return undefined;
         }
-
+        // Parse RangeMode
         osgWrapper.Object( input, plod );
         if ( jsonObj.RangeMode === 'PIXEL_SIZE_ON_SCREEN' )
             plod.setRangeMode( 1 );
-        // Parse file names
 
         var str;
-        // Add children if any
-        var i;
-        // Parse Ranges
 
+        // Parse Ranges
         var o = jsonObj.RangeList;
 
-        for ( i = 0; i < Object.keys( o ).length; i++ ) {
+        for ( var i = 0; i < Object.keys( o ).length; i++ ) {
             str = 'Range ' + i;
             var v = o[ str ];
             plod.setRange( i, v[ 0 ], v[ 1 ] );
         }
+        // Parse Files
         o = jsonObj.RangeDataList;
         for ( i = 0; i < Object.keys( o ).length; i++ ) {
             str = 'File ' + i;
@@ -434,9 +431,8 @@ define( [
         } );
 
         var defer = Q.defer();
-        Q.all( queue ).then( function ( ful ) {
+        Q.all( queue ).then( function ( ) {
             // All the results from Q.all are on the argument as an array
-            console.log( 'fulfilled', ful );
             for ( i = 0; i < queue.length; i++ )
                 plod.addChildNode( queue[ i ] );
             defer.resolve( plod );
