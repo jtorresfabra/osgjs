@@ -137,14 +137,10 @@ define( [
             var numChildren = this.children.length;
             for ( var i = numChildren - 1; i > 0; i-- ) {
                 //First children never expires
-<<<<<<< HEAD
-                var timed = frameStamp.getSimulationTime() - this.perRangeDataList[ i ].timeStamp;
-                if ( ( timed > this.expiryTime ) && ( this.perRangeDataList[ i ].filename.length > 0 ||
-                                                    this.perRangeDataList[ i ].function !== undefined ) ){
-=======
+
                 var timed = frameStamp.getSimulationTime() - this._perRangeDataList[ i ].timeStamp;
-                if ( timed > this._expiryTime ) {
->>>>>>> fix_ImportNode
+                if ( ( timed > this._expiryTime ) && ( this._perRangeDataList[ i ].filename.length > 0 ||
+                                                    this._perRangeDataList[ i ].function !== undefined ) ){
                     if ( i === this.children.length - 1 ) {
                         this.children[ i ].accept( new ReleaseVisitor( gl ) );
                         this.removeChild( this.children[ i ] );
