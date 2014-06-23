@@ -515,6 +515,29 @@ define( [
             } );
         } );
 
+        asyncTest ( 'PagedLOD', function () {
+            var tree = {
+                  "osg.PagedLOD": {
+                    "UniqueID": 1, 
+                    "Name": "PAGEDLOD", 
+                    "RangeDataList": {
+                      "File 0": "cow.osgjs", 
+                      "File 1": "cessna.osgjs"
+                    }, 
+                    "RangeList": {
+                      "Range 0": [ 0, 2000], 
+                      "Range 1": [ 2000, 3.40282e+38]
+                    }, 
+                    "RangeMode": "PIXEL_SIZE_ON_SCREEN"
+                  }
+              };
+               Q.when( ( new Input() ).setJSON( tree ).readObject() ).then( function ( result ) {
+                    ok (result._rangeMode ===1, 'check RangeMode');
+                    start();
+               } );
+
+        });
+
         asyncTest( 'Node Children Ordering', function () {
             var tree = {
                 'osg.Node': {
@@ -545,6 +568,7 @@ define( [
                     } ]
                 }
             };
+
 
             Q.when( ( new Input() ).setJSON( tree ).readObject() ).then( function ( result ) {
                 console.log( result.getChildren()[ 0 ].getName() );

@@ -396,6 +396,62 @@ define( [
         return defer.promise;
     };
 
+    osgWrapper.PagedLOD = function ( input, plod ) {
+        var jsonObj = input.getJSON();
+        var check = function ( /*o*/) {
+            return true;
+        };
+        if ( !check( jsonObj ) ) {
+            return undefined;
+        }
+        // Parse RangeMode
+        osgWrapper.Object( input, plod );
+        if ( jsonObj.RangeMode === 'PIXEL_SIZE_ON_SCREEN' )
+            plod.setRangeMode( 1 );
+
+        var str;
+
+        // Parse Ranges
+        var o = jsonObj.RangeList;
+
+        for ( var i = 0; i < Object.keys( o ).length; i++ ) {
+            str = 'Range ' + i;
+            var v = o[ str ];
+            plod.setRange( i, v[ 0 ], v[ 1 ] );
+        }
+        // Parse Files
+        o = jsonObj.RangeDataList;
+        for ( i = 0; i < Object.keys( o ).length; i++ ) {
+            str = 'File ' + i;
+            plod.setFileName( i, o[ str ] );
+        }
+
+        var createChildren = function ( jsonChildren ) {
+            var promise = input.setJSON( jsonChildren ).readObject();
+            var df = Q.defer();
+            Q.when( promise ).then( function ( obj ) {
+                df.resolve( obj );
+            } );
+            return df.promise;
+        };
+        var queue = [];
+        // For each url, create a function call and add it to the queue
+        if ( jsonObj.Children ) {
+            jsonObj.Children.forEach( function ( jsonChildren ) {
+            queue.push( createChildren( jsonChildren ) );
+            } );
+        }
+        var defer = Q.defer();
+        Q.all( queue ).then( function ( ) {
+            // All the results from Q.all are on the argument as an array
+            for ( i = 0; i < queue.length; i++ )
+                plod.addChildNode( queue[ i ] );
+            defer.resolve( plod );
+        } );
+
+        return defer.promise;
+    };
+
     osgWrapper.Geometry = function ( input, node ) {
         var jsonObj = input.getJSON();
         var check = function ( o ) {
