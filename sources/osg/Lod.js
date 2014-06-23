@@ -20,7 +20,7 @@ define( [
         this._radius = -1;
         this._range = [];
         this._rangeMode = Lod.DISTANCE_FROM_EYE_POINT;
-        this._userDefinedCenter = undefined;
+        this._userDefinedCenter = [];
         this._centerMode = Lod.USE_BOUNDING_SPHERE_CENTER;
     };
 

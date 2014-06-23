@@ -518,17 +518,19 @@ define( [
         asyncTest ( 'PagedLOD', function () {
             var tree = {
                   "osg.PagedLOD": {
-                    "UniqueID": 1, 
-                    "Name": "PAGEDLOD", 
+                    "UniqueID": 1,
+                    "Name": "PAGEDLOD",
+                    "CenterMode": "USER_DEFINED_CENTER",
                     "RangeDataList": {
-                      "File 0": "cow.osgjs", 
+                      "File 0": "cow.osgjs",
                       "File 1": "cessna.osgjs"
                     }, 
                     "RangeList": {
                       "Range 0": [ 0, 2000], 
                       "Range 1": [ 2000, 3.40282e+38]
                     }, 
-                    "RangeMode": "PIXEL_SIZE_ON_SCREEN"
+                    "RangeMode": "PIXEL_SIZE_ON_SCREEN",
+                    "UserCenter": [ 1, 2, 3, 10]
                   }
               };
                Q.when( ( new Input() ).setJSON( tree ).readObject() ).then( function ( result ) {

@@ -404,8 +404,22 @@ define( [
         if ( !check( jsonObj ) ) {
             return undefined;
         }
-        // Parse RangeMode
+
+
+
         osgWrapper.Object( input, plod );
+        // Parse center Mode
+        if ( jsonObj.CenterMode === 'USER_DEFINED_CENTER' )
+            plod.setRangeMode( 1 );
+        else if ( jsonObj.CenterMode === 'UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED' )
+            plod.setRangeMode( 2 );
+
+        // Parse center and radius
+        plod.setCenter( [ jsonObj.UserCenter[0], jsonObj.UserCenter[1], jsonObj.UserCenter[2] ] );
+        plod.setRadius(jsonObj.UserCenter[3]);
+
+
+        // Parse RangeMode
         if ( jsonObj.RangeMode === 'PIXEL_SIZE_ON_SCREEN' )
             plod.setRangeMode( 1 );
 
@@ -434,13 +448,16 @@ define( [
             } );
             return df.promise;
         };
+
         var queue = [];
         // For each url, create a function call and add it to the queue
         if ( jsonObj.Children ) {
-            jsonObj.Children.forEach( function ( jsonChildren ) {
-            queue.push( createChildren( jsonChildren ) );
-            } );
+            for ( var j = 0, k = jsonObj.Children.length; j < k; j++ )
+            {
+                queue.push( createChildren( jsonObj.Children[ j ] ) );
+            }
         }
+
         var defer = Q.defer();
         Q.all( queue ).then( function ( ) {
             // All the results from Q.all are on the argument as an array
