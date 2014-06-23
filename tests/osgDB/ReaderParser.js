@@ -532,7 +532,7 @@ define( [
                   }
               };
                Q.when( ( new Input() ).setJSON( tree ).readObject() ).then( function ( result ) {
-                    ok (result.rangeMode ===1, 'check RangeMode');
+                    ok (result._rangeMode ===1, 'check RangeMode');
                     start();
                } );
 
