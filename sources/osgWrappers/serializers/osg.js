@@ -409,10 +409,10 @@ define( [
 
         osgWrapper.Object( input, plod );
         // Parse center Mode
-        if ( jsonObj.CenterMode === 'USER_DEFINED_CENTER' )
-            plod.setRangeMode( 1 );
+        if ( jsonObj.CenterMode === 'USE_BOUNDING_SPHERE_CENTER' )
+            plod.setCenterMode( 0 );
         else if ( jsonObj.CenterMode === 'UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED' )
-            plod.setRangeMode( 2 );
+            plod.setCenterMode( 2 );
 
         // Parse center and radius
         plod.setCenter( [ jsonObj.UserCenter[0], jsonObj.UserCenter[1], jsonObj.UserCenter[2] ] );
