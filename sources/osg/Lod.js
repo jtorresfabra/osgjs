@@ -56,16 +56,18 @@ define( [
             else return this.getBound().center(); 
         },
 
+        setCenterMode: function ( centerMode ) {
+            this._centerMode = centerMode;
+        },
+
         computeBound: function ( bsphere ) {
             if ( this._centerMode === Lod.USER_DEFINED_CENTER && this._radius >= 0.0)
             {
-                bsphere.init();
                 bsphere.set( this._userDefinedCenter, this._radius);
                 return bsphere;
             }
             else if ( this._centerMode === this.UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED && this._radius >= 0.0)
             {
-                bsphere.init();
                 bsphere.set( this._userDefinedCenter, this._radius);
                 var bs = new BoundingSphere();
                 bsphere.expandBy( Node.prototype.computeBound.call( this, bs ) );
