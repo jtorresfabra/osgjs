@@ -522,8 +522,8 @@ define( [
                     "Name": "PAGEDLOD",
                     "CenterMode": "USER_DEFINED_CENTER",
                     "RangeDataList": {
-                      "File 0": "cow.osgjs",
-                      "File 1": "cessna.osgjs"
+                      "File 0": [ "cow.osgjs" ], 
+                      "File 1": [ "cessna.osgjs" , "cow.osgjs" ]
                     }, 
                     "RangeList": {
                       "Range 0": [ 0, 2000], 

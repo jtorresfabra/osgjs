@@ -31,7 +31,7 @@ define( [
      *  @class PerRangeData
      */
     var PerRangeData = function () {
-        this.filename = '';
+        this.filename = [ ];
         this.function = undefined;
         this.loaded = false;
         this.timeStamp = 0.0;
@@ -66,6 +66,7 @@ define( [
                 this._perRangeDataList[ childNo ].filename = filename;
             }
         },
+
         setFunction: function ( childNo, func ) {
             if ( childNo >= this._perRangeDataList.length ) {
                 var rd = new PerRangeData();
@@ -88,8 +89,45 @@ define( [
 
         loadNode: function ( perRangeData, node ) {
             if ( perRangeData.function === undefined )
-                this.loadNodeFromURL( perRangeData, node );
+                this.loadNodes( perRangeData, node );
             else this.loadNodeFromFunction( perRangeData, node );
+        },
+
+        loadNodes: function ( perRangeData , node ) {
+
+            var promiseArray = [];
+            for (var i = 0, j = perRangeData.filename.length; i < j; i++) {
+                promiseArray.push( loadURL( perRangeData.filename[ i ] ) );
+            };
+            Q.all( promiseArray ).then( function( ) {
+                // All the results from Q.all are on the argument as an array
+                // Now insert children in the right order
+                for ( var i = 0, j = promiseArray.length; i < j; i++ )
+                    node.addChild( promiseArray[ i ] );
+            } );
+        },
+
+        loadURL: function ( url ) {
+            // TODO:
+            // we should ask to the Cache if the data is in the IndexedDB first
+            var ReaderParser = require( 'osgDB/ReaderParser' );
+            Notify.log( 'loading ' + perRangeData.filename );
+            var defer = Q.defer();
+            var req = new XMLHttpRequest();
+            req.open( 'GET', perRangeData.filename, true );
+            req.onload = function ( aEvt ) {
+                var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
+                Q.when( promise ).then( function ( child ) {
+                    defer.resolve( child );
+                } );
+                Notify.log( 'success ' + perRangeData.filename, aEvt );
+            };
+
+            req.onerror = function ( aEvt ) {
+                Notify.error( 'error ' + perRangeData.filename, aEvt );
+            };
+            req.send( null );
+            return defer.promise;
         },
 
         loadNodeFromURL: function ( perRangeData, node ) {
