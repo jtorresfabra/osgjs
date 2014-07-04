@@ -97,8 +97,8 @@ define( [
 
             var promiseArray = [];
             for (var i = 0, j = perRangeData.filename.length; i < j; i++) {
-                promiseArray.push( loadURL( perRangeData.filename[ i ] ) );
-            };
+                promiseArray.push( this.loadURL( perRangeData.filename[ i ] ) );
+            }
             Q.all( promiseArray ).then( function( ) {
                 // All the results from Q.all are on the argument as an array
                 // Now insert children in the right order
@@ -111,20 +111,20 @@ define( [
             // TODO:
             // we should ask to the Cache if the data is in the IndexedDB first
             var ReaderParser = require( 'osgDB/ReaderParser' );
-            Notify.log( 'loading ' + perRangeData.filename );
+            Notify.log( 'loading ' + url );
             var defer = Q.defer();
             var req = new XMLHttpRequest();
-            req.open( 'GET', perRangeData.filename, true );
+            req.open( 'GET', url, true );
             req.onload = function ( aEvt ) {
                 var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
                 Q.when( promise ).then( function ( child ) {
                     defer.resolve( child );
                 } );
-                Notify.log( 'success ' + perRangeData.filename, aEvt );
+                Notify.log( 'success ' + url, aEvt );
             };
 
             req.onerror = function ( aEvt ) {
-                Notify.error( 'error ' + perRangeData.filename, aEvt );
+                Notify.error( 'error ' + url, aEvt );
             };
             req.send( null );
             return defer.promise;

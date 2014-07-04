@@ -373,6 +373,7 @@ define( [
         },
 
         update: function () {
+            this.getDatabasePager().updateSceneGraph( this._updateVisitor.getFrameStamp() );
             this.getScene().accept( this._updateVisitor );
         },
         cull: function () {
