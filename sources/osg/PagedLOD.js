@@ -87,13 +87,13 @@ define( [
             // this.perRangeDataList.push ( null );
         },
 
-        loadNode: function ( perRangeData, node ) {
+        loadNode: function ( perRangeData, node, databasePager ) {
             if ( perRangeData.function === undefined )
-                this.loadNodes( perRangeData, node );
+                this.loadNodes( perRangeData, node, databasePager );
             else this.loadNodeFromFunction( perRangeData, node );
         },
 
-        loadNodes: function ( perRangeData , node ) {
+        loadNodes: function ( perRangeData , node /*, databasePager */) {
 
             var promiseArray = [];
             for (var i = 0, j = perRangeData.filename.length; i < j; i++) {
@@ -103,7 +103,7 @@ define( [
                 // All the results from Q.all are on the argument as an array
                 // Now insert children in the right order
                 for ( var i = 0, j = promiseArray.length; i < j; i++ )
-                    node.addChild( promiseArray[ i ] );
+                    node.addChildNode( promiseArray[ i ] );
             } );
         },
 
@@ -130,7 +130,7 @@ define( [
             return defer.promise;
         },
 
-        loadNodeFromURL: function ( perRangeData, node ) {
+        loadNodeFromURL: function ( perRangeData, node, databasePager ) {
             // TODO:
             // we should ask to the Cache if the data is in the IndexedDB first
             var ReaderParser = require( 'osgDB/ReaderParser' );
@@ -140,7 +140,8 @@ define( [
             req.onload = function ( aEvt ) {
                 var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
                 Q.when( promise ).then( function ( child ) {
-                    node.addChildNode( child );
+                    databasePager.addNodeToQueue ( child, node );
+                    // node.addChildNode( child );
                 } );
                 Notify.log( 'success ' + perRangeData.filename, aEvt );
             };
@@ -270,7 +271,7 @@ define( [
                             var group = visitor.nodePath[ visitor.nodePath.length - 1 ];
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
-                                this.loadNode( this._perRangeDataList[ numChildren ], group );
+                                this.loadNode( this._perRangeDataList[ numChildren ], group, visitor.databasePager );
                             }
                         }
                     }

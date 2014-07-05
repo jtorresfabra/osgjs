@@ -408,6 +408,9 @@ define( [
             this._renderStage.setClearMask( camera.getClearMask() );
             this._renderStage.setViewport( camera.getViewport() );
 
+            // pass de dbpager to the visitor, so plod's can do the requests
+            this._cullVisitor.databasePager = this.getDatabasePager();
+
             // Check if Frustum culling is enabled to calculate the clip planes
             if ( this._options.getBoolean( 'enableFrustumCulling' ) === true ){
                 this._cullVisitor.setEnableFrustumCulling ( true );
