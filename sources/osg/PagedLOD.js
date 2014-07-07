@@ -93,7 +93,7 @@ define( [
             else this.loadNodeFromFunction( perRangeData, node );
         },
 
-        loadNodes: function ( perRangeData , node /*, databasePager */) {
+        loadNodes: function ( perRangeData , node , databasePager ) {
 
             var promiseArray = [];
             for (var i = 0, j = perRangeData.filename.length; i < j; i++) {
@@ -102,8 +102,13 @@ define( [
             Q.all( promiseArray ).then( function( ) {
                 // All the results from Q.all are on the argument as an array
                 // Now insert children in the right order
-                for ( var i = 0, j = promiseArray.length; i < j; i++ )
-                    node.addChildNode( promiseArray[ i ] );
+                var g = new Node();
+                for ( var i = 0, j = promiseArray.length ; i < j; i++ )
+                {
+                    g.addChild( promiseArray[ i ] );
+                }
+                databasePager.addNodeToQueue ( g, node );
+                //node.addChildNode(g);
             } );
         },
 

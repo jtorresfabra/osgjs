@@ -45,7 +45,7 @@ define( [
 
         addLoadedDataToSceneGraph : function ( /*frameStamp*/) {
             // Prune the list of database requests.
-            while ( this._pendingRequests.length ) {
+            if ( this._pendingRequests.length ) {
                 // Take the last element of the array. We are adding the nodes LIFO
                 // Maybe be it's better to add the nodes FIFO?
                 var request = this._pendingRequests.pop( );
