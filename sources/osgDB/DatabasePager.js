@@ -6,18 +6,22 @@
 define( [
     'Q',
     'osg/Utils',
-], function ( Q, MACROUTILS ) {
+    'osg/Node'
+], function ( Q, MACROUTILS, Node ) {
     /**
      *  PagedLOD that can contains paged child nodes
      *  @class PagedLod
      */
     var DatabasePager = function () {
         this._pendingRequests = [];
+        this._pendingNodes = [];
+        this._loading = false;
     };
 
     var DatabaseRequest = function () {
         this._loadedModel = undefined;
         this._group = undefined;
+        this._urls = [];
     //   this.timeStamp = 0.0;
     //  this.frameNumber = 0;
     //    this.frameNumberOfLastTraversal = 0;
@@ -25,17 +29,20 @@ define( [
 
     DatabasePager.prototype = MACROUTILS.objectLibraryClass( {
 
-        addNodeToQueue : function ( node , parent ) {
+        addNodeToQueue : function ( dbrequest ) {
             // We don't need to determine if the dbrequest is in the queue
             // That is already done in the PagedLOD
-                var dbrequest = new DatabaseRequest();
-                dbrequest._loadedModel = node;
-                dbrequest._group = parent;
-                this._pendingRequests.push( dbrequest );
+                // var dbrequest = new DatabaseRequest();
+                // dbrequest._loadedModel = node;
+                // dbrequest._group = parent;
+                this._pendingNodes.push( dbrequest );
         },
+
 
         updateSceneGraph : function( frameStamp ) {
             this.removeExpiredSubgraphs( frameStamp );
+            if (!this._loading )
+                this.takeRequests ( 2 );
             this.addLoadedDataToSceneGraph( frameStamp );
         },
 
@@ -45,15 +52,84 @@ define( [
 
         addLoadedDataToSceneGraph : function ( /*frameStamp*/) {
             // Prune the list of database requests.
-            if ( this._pendingRequests.length ) {
+            if ( this._pendingNodes.length ) {
                 // Take the last element of the array. We are adding the nodes LIFO
                 // Maybe be it's better to add the nodes FIFO?
-                var request = this._pendingRequests.pop( );
+                var request = this._pendingNodes.shift( );
                 request._group.addChildNode( request._loadedModel );
 
                 // TODO: control the time using frameStamp to not use too much time
             }
-        }
+        },
+
+        requestNodeFile: function ( urls, node ){
+            var dbrequest = new DatabaseRequest();
+            dbrequest._group = node;
+            dbrequest._urls = urls;
+            this._pendingRequests.push( dbrequest );
+        },
+
+        takeRequests: function ( number )
+        {
+
+
+            if ( this._pendingRequests.length )
+            {
+                if( this._pendingRequests.length < number )
+                    number = this._pendingRequests.length;
+                for ( var i =0; i < number ; i++)
+                {
+                    this.processRequest ( this._pendingRequests.pop() );
+                }
+            }
+        },
+
+        processRequest: function ( dbrequest ) {
+
+            var that = this;
+            var promiseArray = [];
+            for (var i = 0, j = dbrequest._urls.length; i < j; i++) {
+                promiseArray.push( this.loadURL( dbrequest._urls[ i ] ) );
+            }
+
+            Q.all( promiseArray ).then( function( ) {
+                // All the results from Q.all are on the argument as an array
+                // Now insert children in the right order
+                var g = new Node();
+                for ( var i = 0, j = promiseArray.length ; i < j; i++ )
+                {
+                    g.addChild( promiseArray[ i ] );
+                }
+                dbrequest._loadedModel = g;
+                that._pendingNodes.push( dbrequest );
+                that._loading = false;
+                //node.addChildNode(g);
+            } );
+        },
+
+
+        loadURL: function ( url ) {
+            // TODO:
+            // we should ask to the Cache if the data is in the IndexedDB first
+            var ReaderParser = require( 'osgDB/ReaderParser' );
+            var defer = Q.defer();
+            var req = new XMLHttpRequest();
+            req.open( 'GET', url, true );
+            req.onload = function ( aEvt ) {
+                this._loading = true;
+                var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
+                Q.when( promise ).then( function ( child ) {
+                    defer.resolve( child );
+                } );
+                console.log( 'success ' + url, aEvt );
+            };
+
+            req.onerror = function ( aEvt ) {
+                console.error( 'error ' + url, aEvt );
+            };
+            req.send( null );
+            return defer.promise;
+        },
     }, 'osgDB', 'DatabasePager' );
 
     return DatabasePager;

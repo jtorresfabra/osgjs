@@ -70,8 +70,8 @@ define( [
         }
 
         var createChildren = function ( jsonChildren ) {
-            var promise = input.setJSON( jsonChildren ).readObject();
             var df = Q.defer();
+            var promise = input.setJSON( jsonChildren ).readObject();
             Q.when( promise ).then( function ( obj ) {
                 df.resolve( obj );
             } );
@@ -123,8 +123,9 @@ define( [
         }
 
         var createAttribute = function ( jsonAttribute ) {
-            var promise = input.setJSON( jsonAttribute ).readObject();
             var df = Q.defer();
+            var promise = input.setJSON( jsonAttribute ).readObject();
+
             promiseArray.push( df.promise );
             Q.when( promise ).then( function ( attribute ) {
                 if ( attribute !== undefined ) {
@@ -143,8 +144,9 @@ define( [
         }
 
         var createTextureAttribute = function ( unit, textureAttribute ) {
-            var promise = input.setJSON( textureAttribute ).readObject();
             var df = Q.defer();
+            var promise = input.setJSON( textureAttribute ).readObject();
+
             promiseArray.push( df.promise );
             Q.when( promise ).then( function ( attribute ) {
                 if ( attribute )
@@ -441,8 +443,9 @@ define( [
         }
 
         var createChildren = function ( jsonChildren ) {
-            var promise = input.setJSON( jsonChildren ).readObject();
             var df = Q.defer();
+            var promise = input.setJSON( jsonChildren ).readObject();
+
             Q.when( promise ).then( function ( obj ) {
                 df.resolve( obj );
             } );

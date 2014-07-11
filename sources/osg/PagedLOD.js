@@ -276,7 +276,11 @@ define( [
                             var group = visitor.nodePath[ visitor.nodePath.length - 1 ];
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
-                                this.loadNode( this._perRangeDataList[ numChildren ], group, visitor.databasePager );
+                                //
+                                if ( !this._perRangeDataList[ numChildren ].filename.length )
+                                    this.loadNode( this._perRangeDataList[ numChildren ], group, visitor.databasePager );
+                                else
+                                    visitor.databasePager.requestNodeFile( this._perRangeDataList[ numChildren ].filename, group );
                             }
                         }
                     }
