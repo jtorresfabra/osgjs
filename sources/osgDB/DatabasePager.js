@@ -16,13 +16,14 @@ define( [
         this._pendingRequests = [];
         this._pendingNodes = [];
         this._loading = false;
+        this._progressCallback = undefined;
     };
 
     var DatabaseRequest = function () {
         this._loadedModel = undefined;
         this._group = undefined;
         this._urls = [];
-    //   this.timeStamp = 0.0;
+        this._timeStamp = 0.0;
     //  this.frameNumber = 0;
     //    this.frameNumberOfLastTraversal = 0;
     };
@@ -40,14 +41,21 @@ define( [
 
 
         updateSceneGraph : function( frameStamp ) {
+            // Progress callback
+            if ( this._progressCallback !== undefined )
+                this._progressCallback( this._pendingRequests.length, this._pendingNodes.length );
             this.removeExpiredSubgraphs( frameStamp );
             if (!this._loading )
-                this.takeRequests ( 2 );
+                this.takeRequests ( 1 );
             this.addLoadedDataToSceneGraph( frameStamp );
         },
 
         removeExpiredSubgraphs : function (/* frameStamp */) {
          //   console.log( 'frameStamp:' , frameStamp.getFrameNumber( ) );
+        },
+
+        setProgressCallback: function ( cb ) {
+            this._progressCallback = cb;
         },
 
         addLoadedDataToSceneGraph : function ( /*frameStamp*/) {
@@ -62,24 +70,31 @@ define( [
             }
         },
 
-        requestNodeFile: function ( urls, node ){
+        requestNodeFile: function ( urls, node, timestamp ){
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
             dbrequest._urls = urls;
+            dbrequest._timeStamp = timestamp;
             this._pendingRequests.push( dbrequest );
+            return dbrequest;
         },
 
         takeRequests: function ( number )
         {
 
-
             if ( this._pendingRequests.length )
             {
+                //TODO: Sort and Purge old requests depending on timestamp
+                this._pendingRequests.sort(function (r1, r2) { return r1.timestamp - r2.timestamp; } );
+                // remove request if we have more than 50
+                // if ( this._pendingRequests.length > 50 )
+                //     this._pendingRequests = this._pendingRequests.slice ( 0, 50 );
+
                 if( this._pendingRequests.length < number )
                     number = this._pendingRequests.length;
                 for ( var i =0; i < number ; i++)
                 {
-                    this.processRequest ( this._pendingRequests.pop() );
+                    this.processRequest ( this._pendingRequests.shift() );
                 }
             }
         },

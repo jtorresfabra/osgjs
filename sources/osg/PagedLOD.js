@@ -37,6 +37,7 @@ define( [
         this.timeStamp = 0.0;
         this.frameNumber = 0;
         this.frameNumberOfLastTraversal = 0;
+        this.dbrequest = undefined;
     };
 
     /** @lends PagedLOD.prototype */
@@ -190,6 +191,7 @@ define( [
                         this.children[ i ].accept( new ReleaseVisitor( gl ) );
                         this.removeChild( this.children[ i ] );
                         this._perRangeDataList[ i ].loaded = false;
+                        this._perRangeDataList[ i ].dbrequest = undefined;
                         numChildren--;
                     }
                 } else {
@@ -280,7 +282,11 @@ define( [
                                 if ( !this._perRangeDataList[ numChildren ].filename.length )
                                     this.loadNode( this._perRangeDataList[ numChildren ], group, visitor.databasePager );
                                 else
-                                    visitor.databasePager.requestNodeFile( this._perRangeDataList[ numChildren ].filename, group );
+                                    this._perRangeDataList[ numChildren ].dbrequest = visitor.databasePager.requestNodeFile( this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime() );
+                            } else {
+                                // Update timestamp of the request.
+                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined)
+                                    this._perRangeDataList[ numChildren ].dbrequest._timeStamp = visitor.getFrameStamp().getSimulationTime();
                             }
                         }
                     }
