@@ -44,7 +44,7 @@ define( [
             // Progress callback
             if ( this._progressCallback !== undefined )
                 this._progressCallback( this._pendingRequests.length, this._pendingNodes.length );
-            this.removeExpiredSubgraphs( frameStamp );
+            //this.removeExpiredSubgraphs( frameStamp );
             if (!this._loading )
                 this.takeRequests ( 1 );
             this.addLoadedDataToSceneGraph( frameStamp );
