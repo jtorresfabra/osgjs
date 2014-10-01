@@ -212,8 +212,8 @@ define( [
             //this._projectionMatrixStack.length = 0;
             this._projectionMatrixStack.splice( 0, this._projectionMatrixStack.length );
             this._reserveMatrixStack.current = 0;
+            this._resetRenderLeafStack();
             this._reserveLeafStack.current = 0;
-
             this._computedNear = Number.POSITIVE_INFINITY;
             this._computedFar = Number.NEGATIVE_INFINITY;
         },
@@ -282,7 +282,16 @@ define( [
             }
             return l;
         },
-
+        _resetRenderLeafStack: function () {
+            for ( var i = 0, j = this._reserveLeafStack.current; i <= j; i++ )
+            {
+                this._reserveLeafStack[ i ].parent = undefined ;
+                this._reserveLeafStack[ i ].projection = undefined;
+                this._reserveLeafStack[ i ].geometry = undefined;
+                this._reserveLeafStack[ i ].modelview = undefined;
+                this._reserveLeafStack[ i ].depth = undefined;
+            } 
+        },
         setEnableFrustumCulling: function ( value ) {
             this._enableFrustumCulling = value;
         },
@@ -537,7 +546,7 @@ define( [
             this._currentRenderBin.addStateGraph( this._currentStateGraph );
         }
 
-        var leaf = this._getReservedLeaf();
+        var leaf = {};//this._getReservedLeaf();
         var depth = 0;
         if ( bb.valid() ) {
             depth = this.distance( bb.center(), modelview );
