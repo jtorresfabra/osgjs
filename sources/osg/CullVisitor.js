@@ -546,7 +546,7 @@ define( [
             this._currentRenderBin.addStateGraph( this._currentStateGraph );
         }
 
-        var leaf = {};//this._getReservedLeaf();
+        var leaf = this._getReservedLeaf();
         var depth = 0;
         if ( bb.valid() ) {
             depth = this.distance( bb.center(), modelview );

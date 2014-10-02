@@ -60,7 +60,9 @@ define( [
 
         addLoadedDataToSceneGraph : function ( /*frameStamp*/) {
             // Prune the list of database requests.
-            if ( this._pendingNodes.length ) {
+            this._pendingNodes.sort( function ( r1, r2 ) { return r2._timestamp - r1._timestamp; } );
+            if ( this._pendingNodes.length ){
+            //for (  var i = 0, j = this._pendingNodes.length; i<j; ++i ) {
                 // Take the last element of the array. We are adding the nodes LIFO
                 // Maybe be it's better to add the nodes FIFO?
                 var request = this._pendingNodes.shift( );
@@ -85,7 +87,7 @@ define( [
             if ( this._pendingRequests.length )
             {
                 //TODO: Sort and Purge old requests depending on timestamp
-                this._pendingRequests.sort(function (r1, r2) { return r1.timestamp - r2.timestamp; } );
+                this._pendingRequests.sort(function (r1, r2) { return r2._timestamp - r1._timestamp; } );
                 // remove request if we have more than 50
                 // if ( this._pendingRequests.length > 50 )
                 //     this._pendingRequests = this._pendingRequests.slice ( 0, 50 );
@@ -130,13 +132,13 @@ define( [
             var defer = Q.defer();
             var req = new XMLHttpRequest();
             req.open( 'GET', url, true );
-            req.onload = function ( aEvt ) {
+            req.onload = function ( ) {
                 this._loading = true;
                 var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
                 Q.when( promise ).then( function ( child ) {
                     defer.resolve( child );
                 } );
-                console.log( 'success ' + url, aEvt );
+                //console.log( 'success ' + url, aEvt );
             };
 
             req.onerror = function ( aEvt ) {
