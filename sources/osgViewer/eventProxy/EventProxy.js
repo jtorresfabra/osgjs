@@ -1,18 +1,19 @@
 define( [
-    'osgViewer/eventProxy/GamePad',
+    //'osgViewer/eventProxy/GamePad',
     'osgViewer/eventProxy/Hammer',
-    'osgViewer/eventProxy/LeapMotion',
+    //'osgViewer/eventProxy/LeapMotion',
     'osgViewer/eventProxy/StandardMouseKeyboard',
-    'osgViewer/eventProxy/Oculus',
+    //'osgViewer/eventProxy/Oculus',
     'osgViewer/eventProxy/DeviceOrientation'
-], function ( GamePad, HammerOsg, LeapMotion, StandardMouseKeyboard, Oculus, DeviceOrientation ) {
+], function ( /*GamePad,*/ HammerOsg, /*LeapMotion,*/ StandardMouseKeyboard, /*Oculus,*/ DeviceOrientation ) {
 
-    return {
-        GamePad: GamePad,
+       return {
+        //GamePad: GamePad,
         Hammer: HammerOsg,
-        LeapMotion: LeapMotion,
+       //LeapMotion: LeapMotion,
         StandardMouseKeyboard: StandardMouseKeyboard,
-        Oculus: Oculus,
-        DeviceOrientation: DeviceOrientation
+        //Oculus: Oculus,
+        DeviceOrientation: DeviceOrientation,
+
     };
 } );

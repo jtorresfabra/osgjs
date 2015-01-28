@@ -51,8 +51,10 @@ define( [
 
             // we pass directly hammer object
             this.getManipulatorController().setEventProxy( this._hammer );
+        },
+        finalize: function () {
+            this._viewer = undefined;
         }
-
     };
     return HammerController;
 } );

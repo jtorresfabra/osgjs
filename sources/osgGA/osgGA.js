@@ -20,7 +20,7 @@ define( [
 
     var osgGA = {};
 
-    Hammer.NO_MOUSEEVENTS = true; // disable hammer js mouse events
+   // Hammer.NO_MOUSEEVENTS = true; // disable hammer js mouse events
 
     osgGA.FirstPersonManipulator = FirstPersonManipulator;
     osgGA.getFirstPersonStandardMouseKeyboardControllerClass = function () {

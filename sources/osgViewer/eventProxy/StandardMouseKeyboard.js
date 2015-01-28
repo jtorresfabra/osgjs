@@ -232,8 +232,14 @@ define( [], function () {
                 return;
 
             this.getManipulatorController().setEventProxy( this );
+        },
+        finalize: function () {
+            this.removeEventListeners( this._mouseEventNode, this._wheelEventNode, this._keyboardEventNode );
+            this._viewer = undefined;
+            this._mouseEventNode = undefined;
+            this._wheelEventNode = undefined;
+            this._keyboardEventNode = undefined;
         }
-
     };
     return StandardMouseKeyboard;
 } );

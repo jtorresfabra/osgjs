@@ -137,9 +137,10 @@ define( [
             eventsBackend.StandardMouseKeyboard.keyboardEventNode = eventsBackend.StandardMouseKeyboard.keyboardEventNode || document;
 
             // hammer
-            eventsBackend.Hammer = eventsBackend.Hammer || {};
-            eventsBackend.Hammer.eventNode = eventsBackend.Hammer.eventNode || defaultMouseEventNode;
-
+            if ( 'ontouchstart' in window ){
+                eventsBackend.Hammer = eventsBackend.Hammer || {};
+                eventsBackend.Hammer.eventNode = eventsBackend.Hammer.eventNode || defaultMouseEventNode;
+            }
             // gamepade
             eventsBackend.GamePad = eventsBackend.GamePad || {};
 
@@ -590,6 +591,28 @@ define( [
                 if ( device.update )
                     device.update( frameStamp );
             } );
+        },
+
+        finalize: function () {
+            this._eventProxy.StandardMouseKeyboard.finalize();
+            this._stats = null;
+            this._options = null;
+            this._light = null;
+            this._canvas = null;
+            this._cullVisitor = null;
+            this._camera = null;
+            this._state = null;
+            this._sceneData = null;
+            this._scene = null;
+            this._eventProxy = null;
+            this._manipulator = null;
+            this._renderStage = null;
+            this._stateGraph = null;
+            this._webGLCaps = null;
+            this._graphicContext = null;
+            this._updateVisitor = null;
+            // TODO cancel requests in DBPager
+            this._databasePager = null;
         }
 
     } );
