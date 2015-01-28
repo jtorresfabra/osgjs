@@ -5,7 +5,8 @@ define( [
 
         // prefix to built url to load resource
         prefixURL: '',
-
+        plodPrefixURL: '',
+        plodSuffixURL: '',
         // callback used when loading data
         progressXHRCallback: undefined,
 

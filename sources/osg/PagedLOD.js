@@ -24,6 +24,8 @@ define( [
         this._expiryFrame = 0;
         this._centerMode = Lod.USER_DEFINED_CENTER;
         this._frameNumberOfLastTraversal = 0;
+        this._prefixURL = '';
+        this._suffixURL = '';
     };
 
     /**
@@ -76,7 +78,12 @@ define( [
                 this._perRangeDataList[ childNo ].function = func;
             }
         },
-
+        setPrefixURL: function ( prefixURL ) {
+            this._prefixURL = prefixURL;
+        },
+        setSuffixURL: function ( suffixURL ) {
+            this._suffixURL = suffixURL;
+        },
         addChild: function ( node, min, max ) {
             Lod.prototype.addChild.call( this, node, min, max );
             this._perRangeDataList.push( new PerRangeData() );
@@ -202,7 +209,7 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
-                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime() );
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime() );
                             }
                         }
                     }
