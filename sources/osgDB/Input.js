@@ -112,6 +112,17 @@ define( [
 
             return url;
         },
+        
+        computeBinaryURL: function ( url ) {
+
+            if ( typeof this._defaultOptions.prefixURL === 'string' &&
+                this._defaultOptions.plodPrefixURL.length > 0 ) {
+
+                return this._defaultOptions.plodPrefixURL + url;
+            }
+
+            return url;
+        },
 
         getObjectWrapper: function ( path ) {
             if ( this._objectRegistry[ path ] !== undefined ) {
@@ -215,7 +226,7 @@ define( [
                 return options.readNodeURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
             var defer = Q.defer();
 
@@ -266,7 +277,7 @@ define( [
                 return options.readBinaryArrayURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
 
             if ( this._identifierMap[ url ] !== undefined ) {
