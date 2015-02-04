@@ -28,8 +28,9 @@ define( [
         this._downloadingRequestsNumber = 0;
         this._maxRequestsPerFrame = 10;
         // In OSG the targetMaximumNumberOfPagedLOD is 300 by default
-        // here we set 50 as we need to be more strict with memory in a browser  
-        this._targetMaximumNumberOfPagedLOD = 50;
+        // here we set 75 as we need to be more strict with memory in a browser
+        // This value can be setted using setTargetMaximumNumberOfPageLOD method.
+        this._targetMaximumNumberOfPagedLOD = 75;
     };
 
     var DatabaseRequest = function () {
@@ -39,8 +40,7 @@ define( [
         this._function = undefined;
         this._timeStamp = 0.0;
         this._groupExpired = false;
-        //  this.frameNumber = 0;
-        //  this.frameNumberOfLastTraversal = 0;
+        this._priority = 0.0;
     };
 
     var FindPagedLODsVisitor = function ( pagedLODList, frameNumber ) {
@@ -82,9 +82,9 @@ define( [
             this.traverse( node );
         },
         removeExpiredChildrenAndFindPagedLODs: function ( plod, expiryTime, expiryFrame, removedChildren ) {
+            if ( !plod.children.length ) return;
             var sizeBefore = removedChildren.length;
             plod.removeExpiredChildren( expiryTime, expiryFrame, removedChildren );
-
             for ( var i = sizeBefore; i < removedChildren.length; i++ ) {
                 removedChildren[ i ].accept( this );
             }
@@ -112,35 +112,46 @@ define( [
         getTargetMaximumNumberOfPageLOD: function () {
             return this._targetMaximumNumberOfPagedLOD;
         },
-
-        addNodeToQueue: function ( dbrequest ) {
-            // We don't need to determine if the dbrequest is in the queue
-            // That is already done in the PagedLOD
-            this._pendingNodes.push( dbrequest );
+        reset: function () {
+            this._pendingRequests = [];
+            this._pendingNodes = [];
+            this._loading = false;
+            this._lastCB = true;
+            this._activePagedLODList.clear();
+            this._childrenToRemoveList.clear();
+            this._downloadingRequestsNumber = 0;
+            this._maxRequestsPerFrame = 10;
+            this._targetMaximumNumberOfPagedLOD = 75;
         },
-
         updateSceneGraph: function ( frameStamp ) {
             // Progress callback
             if ( this._progressCallback !== undefined ) {
                 // Maybe we should encapsulate this in a promise.
-                if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 ) {
+                this.executeProgressCallback();
+            }
+            // We need to control the time spent in DatabasePager tasks to
+            // avoid making the rendering slow.
+            // Probably we can have a time parameter to manage all the tasks.
+            // Now it is fixed to 0.0025 ms to remove expired childs
+            // and 0.005 ms  to add to the scene the loaded requests.
+
+            // Remove expired nodes
+            this.removeExpiredSubgraphs( frameStamp, 0.0025 );
+            // Time to do the requests.
+            if ( !this._loading ) this.takeRequests();
+            // Add the loaded data to the graph
+            this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
+        },
+        executeProgressCallback: function() {
+            if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 ) {
+                this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
+                this._lastCB = false;
+            } else {
+                if ( !this._lastCB ) {
                     this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
-                    this._lastCB = false;
-                } else {
-                    if ( !this._lastCB ) {
-                        this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
-                        this._lastCB = true;
-                    }
+                    this._lastCB = true;
                 }
             }
-            // Remove expired nodes
-            this.removeExpiredSubgraphs( frameStamp );
-
-            if ( !this._loading ) {
-                // Time to do the requests.
-                this.takeRequests();
-            }
-            this.addLoadedDataToSceneGraph( frameStamp );
         },
         setMaxRequestsPerFrame: function ( numRequests ) {
             this._maxRequestsPerFrame = numRequests;
@@ -156,11 +167,19 @@ define( [
             this._progressCallback = cb;
         },
 
-        addLoadedDataToSceneGraph: function ( frameStamp ) {
+        addLoadedDataToSceneGraph: function ( frameStamp, availableTime ) {
+            if ( availableTime <= 0.0 ) return;
             // Prune the list of database requests.
-            if ( this._pendingNodes.length ) {
-                var request = this._pendingNodes.shift();
+            var elapsedTime = 0.0;
+            var beginTime = Timer.instance().tick();
+            this._pendingNodes.sort( function ( r1, r2 ) {
+                    return r2._timeStamp - r1._timeStamp;
+            } );
 
+            for (var i = 0; i< this._pendingNodes.length; i++ ) {
+                if ( elapsedTime > availableTime ) return;
+
+                var request = this._pendingNodes.shift();
                 var frameNumber = frameStamp.getFrameNumber();
                 var timeStamp = frameStamp.getSimulationTime();
                 // If the request is not expired, then add/register new childs
@@ -179,10 +198,11 @@ define( [
                     // Clean the request
                     request._loadedModel = undefined;
                     request = undefined;
-                    return;
                 }
-
+                elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             }
+            availableTime -= elapsedTime;
+            return availableTime;
         },
 
         isLoading: function () {
@@ -194,24 +214,32 @@ define( [
             subgraph.accept( new FindPagedLODsVisitor( this._activePagedLODList, frameNumber ) );
         },
 
-        requestNodeFile: function ( func, url, node, timestamp ) {
+        requestNodeFile: function ( func, url, node, timestamp, priority ) {
+            // We don't need to determine if the dbrequest is in the queue
+            // That is already done in the PagedLOD, so we just create the request
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
             dbrequest._function = func;
             dbrequest._url = url;
             dbrequest._timeStamp = timestamp;
+            dbrequest._priority = priority;
             this._pendingRequests.push( dbrequest );
             return dbrequest;
         },
 
         takeRequests: function ( ) {
             if ( this._pendingRequests.length ) {
-                // Sort requests depending on timestamp
-                this._pendingRequests.sort( function ( r1, r2 ) {
-                    return r1.timeStamp - r2.timeStamp;
-                } );
-
                 var numRequests = Math.min( this._maxRequestsPerFrame, this._pendingRequests.length );
+                this._pendingRequests.sort( function ( r1, r2 ) {
+                    // Ask for newer requests first.
+                    var value = r2._timeStamp - r1._timeStamp;
+                    // Ask for the greater priority if the timestamp is the same.
+                    if ( value === 0 ) {
+                        value = r2._priority - r1._priority;
+                    }
+                    return value;
+                    
+                } );
                 for ( var i = 0; i < numRequests; i++ ) {
                     this._downloadingRequestsNumber++;
                     this.processRequest( this._pendingRequests.shift() );
@@ -229,7 +257,6 @@ define( [
                 this._loading = false;
                 return;
             }
-
             // Load from function
             if ( dbrequest._function !== undefined ) {
                 q.when( this.loadNodeFromFunction( dbrequest._function, dbrequest._group ) ).then( function ( child ) {
@@ -262,6 +289,10 @@ define( [
             var defer = q.defer();
             // Call to ReaderParser just in case there is a custom readNodeURL Callback
             // See osgDB/Options.js and/or osgDB/Input.js
+            // TODO: We should study if performance can be improved if separating the XHTTP request from
+            // the parsing. This way several/many request could be done at the same time.
+            // Also we should be able to cancel requests, so there is a need to have access
+            // to the HTTPRequest Object
             q.when( ReaderParser.readNodeURL( url ) ).then( function ( child ) {
                 defer.resolve( child );
             } );
@@ -284,9 +315,10 @@ define( [
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );
             availableTime -= elapsedTime;
+            return availableTime;
         },
 
-        removeExpiredSubgraphs: function ( frameStamp ) {
+        removeExpiredSubgraphs: function ( frameStamp, availableTime ) {
             if ( frameStamp.getFrameNumber() === 0 ) return;
             var numToPrune = this._activePagedLODList.size - this._targetMaximumNumberOfPagedLOD;
             var expiryTime = frameStamp.getSimulationTime() - 0.1;
@@ -295,32 +327,39 @@ define( [
             // certainly have expired.
             // TODO: Then traverse active nodes if we still need to prune.
             if ( numToPrune > 0 ) {
-                this.removeExpiredChildren( numToPrune, expiryTime, expiryFrame );
+                availableTime = this.removeExpiredChildren( numToPrune, expiryTime, expiryFrame, availableTime );
             }
+            return availableTime;
         },
 
-        removeExpiredChildren: function ( numToPrune, expiryTime, expiryFrame ) {
+        removeExpiredChildren: function ( numToPrune, expiryTime, expiryFrame, availableTime ) {
             // Iterate over the activePagedLODList to remove expired children
+            // We need to control the time spent in remove childs.
+            var elapsedTime = 0.0;
+            var beginTime = Timer.instance().tick();
             var that = this;
             var removedChildren = [];
             var expiredPagedLODVisitor = new ExpirePagedLODVisitor();
             this._activePagedLODList.forEach( function ( plod ) {
-                if ( numToPrune > 0 ) {
-                    // See if plod is still active, so we don't have to prune
-                    if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return;
-                    expiredPagedLODVisitor.removeExpiredChildrenAndFindPagedLODs( plod, expiryTime, expiryFrame, removedChildren );
-                    for ( var i = 0; i < expiredPagedLODVisitor._childrenList.length; i++ ) {
-                        that._activePagedLODList.delete( expiredPagedLODVisitor._childrenList[ i ] );
-                        numToPrune--;
-                    }
-                    // Add to the remove list all the childs deleted
-                    for ( i = 0; i < removedChildren.length; i++ ){
-                        that._childrenToRemoveList.add( removedChildren[ i ] );
-                    }
-                    expiredPagedLODVisitor._childrenList.length = 0;
-                    removedChildren.length = 0;
+                if ( elapsedTime > availableTime ) return false;
+                if ( numToPrune < 0 ) return false;
+                // See if plod is still active, so we don't have to prune
+                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return;
+                expiredPagedLODVisitor.removeExpiredChildrenAndFindPagedLODs( plod, expiryTime, expiryFrame, removedChildren );
+                for ( var i = 0; i < expiredPagedLODVisitor._childrenList.length; i++ ) {
+                    that._activePagedLODList.delete( expiredPagedLODVisitor._childrenList[ i ] );
+                    numToPrune--;
                 }
+                // Add to the remove list all the childs deleted
+                for ( i = 0; i < removedChildren.length; i++ ){
+                    that._childrenToRemoveList.add( removedChildren[ i ] );
+                }
+                expiredPagedLODVisitor._childrenList.length = 0;
+                removedChildren.length = 0;
+                elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );
+            availableTime -= elapsedTime;
+            return availableTime;
         },
     }, 'osgDB', 'DatabasePager' );
 
