@@ -31,10 +31,16 @@ define( [
         return true;
     };
 
-    var near = function (a, b, threshold) {
-        if (threshold === undefined) {
+    var near = function (a, b, error, message ) {
+
+        var threshold = error;
+        var text = message;
+
+        if ( typeof threshold === 'string' )
+             text = threshold;
+
+        if ( typeof threshold !== 'number' )
             threshold = 1e-5;
-        }
 
         if ( $.isArray(a)) {
             for (var i = 0; i < a.length; ++i) {
@@ -46,11 +52,11 @@ define( [
             }
         } else {
             if (Math.abs(a-b) > threshold) {
-                ok(false, a + ' != ' + b);
+                ok(false, a + ' != ' + b );
                 return;
             }
         }
-        ok(true, 'okay: ' + QUnit.jsDump.parse(a));
+        ok(true, text ); //'okay: ' + QUnit.jsDump.parse(a));
     };
 
     var createFakeWebGLCanvas = function() {
@@ -157,12 +163,17 @@ define( [
                  uniform1fv: function() { },
                  uniform4fv: function() { },
                  uniform3fv: function() { },
-                 uniform1iv: function() { }
+                 uniform1iv: function() { },
+                 canvas: {
+                     clientWidth: 300,
+                     clientHeight: 300
+                 }
+
                };
     };
 
     return {
-        check_near: checkNear,
+        'check_near': checkNear,
         createFakeRenderer: createFakeRenderer,
         removeCanvas: removeCanvas,
         createCanvas: createCanvas,

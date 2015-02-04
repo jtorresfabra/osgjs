@@ -1,22 +1,25 @@
 define( [
     'tests/mockup/mockup',
-    'osg/CullVisitor',
-    'osg/Node',
+    'osg/BoundingBox',
     'osg/Camera',
-    'osg/RenderStage',
-    'osg/StateGraph',
+    'osg/CullSettings',
+    'osg/CullVisitor',
     'osg/Matrix',
     'osg/MatrixTransform',
+    'osg/Node',
+    'osg/RenderBin',
+    'osg/RenderStage',
+    'osg/Shape',
+    'osg/StateGraph',
     'osg/State',
     'osg/StateSet',
-    'osg/Viewport',
-    'osg/Shape',
-    'osg/CullSettings',
-    'osg/BoundingBox',
+    'osg/TransformEnums',
     'osg/Vec3',
-    'osg/RenderBin',
-    'osgViewer/Viewer'
-], function ( mockup, CullVisitor, Node, Camera, RenderStage, StateGraph, Matrix, MatrixTransform, State, StateSet, Viewport, Shape, CullSettings, BoundingBox, Vec3, RenderBin, Viewer ) {
+    'osg/Viewport',
+    'osgViewer/View',
+    'osgViewer/Viewer',
+    'osgShader/ShaderGeneratorProxy'
+], function ( mockup, BoundingBox, Camera, CullSettings, CullVisitor, Matrix, MatrixTransform, Node, RenderBin, RenderStage, Shape, StateGraph, State, StateSet, TransformEnums, Vec3, Viewport, View, Viewer, ShaderGeneratorProxy ) {
 
     return function () {
 
@@ -29,7 +32,11 @@ define( [
             viewer.setupManipulator();
             viewer.init();
             viewer.frame();
+<<<<<<< HEAD
             var uv = viewer._cullVisitor;
+=======
+            var uv = viewer.getCamera().getRenderer().getCullVisitor();
+>>>>>>> DatabasePager
             var root = new Node();
             root.setName( 'a' );
             var b = new Node();
@@ -82,7 +89,7 @@ define( [
                 viewer.setupManipulator();
                 viewer.init();
                 viewer.frame();
-                var cull = viewer._cullVisitor;
+                var cull = viewer.getCamera().getRenderer()._cullVisitor;
 
                 var camera0 = new Camera();
                 camera0.setRenderOrder( Camera.NESTED_RENDER );
@@ -107,7 +114,8 @@ define( [
                 cull.setStateGraph( sg );
 
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
                 camera0.accept( cull );
 
                 ok( cull.rootRenderStage === cull.currentRenderBin, 'renderStage should stay the render bin and id ' ); //+ cull.rootRenderStage === cull.currentRenderBin
@@ -117,11 +125,17 @@ define( [
 
             // check render stage and render bin
             ( function () {
-                var state = new State();
+                var state = new State( new ShaderGeneratorProxy() );
                 var fakeRenderer = mockup.createFakeRenderer();
-                fakeRenderer.validateProgram = function() { return true; };
-                fakeRenderer.getProgramParameter = function() { return true; };
-                fakeRenderer.isContextLost = function() { return false; };
+                fakeRenderer.validateProgram = function () {
+                    return true;
+                };
+                fakeRenderer.getProgramParameter = function () {
+                    return true;
+                };
+                fakeRenderer.isContextLost = function () {
+                    return false;
+                };
 
                 state.setGraphicContext( fakeRenderer );
                 var camera0 = new Camera();
@@ -143,7 +157,8 @@ define( [
                 cull.setStateGraph( sg );
 
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
                 cull.pushStateSet( new StateSet() );
 
                 camera0.accept( cull );
@@ -193,7 +208,8 @@ define( [
                 cull.setStateGraph( sg );
 
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
 
                 camera0.accept( cull );
                 var supposedProjection = [ 1.299038105676658, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.9423076923076918, -1, 0, 0, -14.417307692307686, 0 ];
@@ -207,7 +223,7 @@ define( [
                 var camera0 = new Camera();
 
                 var mt = new MatrixTransform();
-                Matrix.makeTranslate( 0, 0, 10, mt.getMatrix());
+                Matrix.makeTranslate( 0, 0, 10, mt.getMatrix() );
                 var geom = Shape.createTexturedQuadGeometry( -5.0, -5, 0,
                     10, 0, 0,
                     0, 10, 0,
@@ -216,7 +232,7 @@ define( [
                 camera0.addChild( mt );
 
                 Matrix.makeLookAt( [ 0, 0, 20 ], [ 0, 0, 10 ], [ 0, 1, 0 ], camera0.getViewMatrix() );
-                Matrix.makePerspective( 60, 800 / 600, 1.0, 1000.0, camera0.getProjectionMatrix() ) ;
+                Matrix.makePerspective( 60, 800 / 600, 1.0, 1000.0, camera0.getProjectionMatrix() );
 
                 var stack = [];
 
@@ -244,7 +260,8 @@ define( [
                 cull.setStateGraph( sg );
 
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
 
                 camera0.accept( cull );
                 ok( mockup.check_near( stack[ 1 ][ 0 ], 10 ), 'near should be 10 and is ' + stack[ 1 ][ 0 ] );
@@ -328,7 +345,8 @@ define( [
                 cull.setStateGraph( sg );
 
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
 
                 camera0.accept( cull );
                 ok( mockup.check_near( stack[ 1 ][ 0 ], d_near, 0.8 ), 'near should be ' + d_near + ' and is ' + stack[ 1 ][ 0 ] );
@@ -373,7 +391,8 @@ define( [
                 var rs = new RenderStage();
                 var sg = new StateGraph();
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
                 cull.setRenderStage( rs );
                 cull.setStateGraph( sg );
                 cull.setComputeNearFar( false );
@@ -381,9 +400,9 @@ define( [
                 node3.accept( cull );
                 rs.sort();
 
-                ok( rs._bins[ '0' ]._leafs[ 2 ].depth === -15, 'Check depth of leaf 0' );
-                ok( rs._bins[ '0' ]._leafs[ 1 ].depth === -10, 'Check depth of leaf 1' );
-                ok( rs._bins[ '0' ]._leafs[ 0 ].depth === 5, 'Check depth of leaf 2' );
+                ok( rs._bins[ '0' ]._leafs[ 2 ]._depth === -15, 'Check depth of leaf 0' );
+                ok( rs._bins[ '0' ]._leafs[ 1 ]._depth === -10, 'Check depth of leaf 1' );
+                ok( rs._bins[ '0' ]._leafs[ 0 ]._depth === 5, 'Check depth of leaf 2' );
                 ok( rs._bins[ '0' ]._sortMode === RenderBin.SORT_BACK_TO_FRONT, 'Check RenderBin sort mode' );
 
             } )();
@@ -413,12 +432,13 @@ define( [
                 var viewer = new Viewer( canvas );
                 viewer.init();
                 viewer.frame();
-                var cull = viewer._cullVisitor;
+                var cull = viewer.getCamera().getRenderer()._cullVisitor;
                 //var cull = new CullVisitor();
                 var rs = new RenderStage();
                 var sg = new StateGraph();
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
                 cull.setRenderStage( rs );
                 cull.setStateGraph( sg );
                 cull.setComputeNearFar( false );
@@ -426,7 +446,7 @@ define( [
                 root.accept( cull );
                 rs.sort();
 
-                ok( rs._bins[ '10' ]._leafs[ 0 ].depth === 10, 'Check transparent bin' );
+                ok( rs._bins[ '10' ]._leafs[ 0 ]._depth === 10, 'Check transparent bin' );
                 ok( rs._bins[ '10' ].getStateGraphList().length === 0, 'Check transparent bin StateGraphList' );
                 ok( rs._leafs.length === 0, 'Check leafs for normal rendering bin' );
                 ok( rs.getStateGraphList().length === 1, 'Check StateGraphList for normal rendering bin' );
@@ -439,7 +459,7 @@ define( [
                 var viewer = new Viewer( canvas );
                 viewer.init();
                 viewer.frame();
-                var cull = viewer._cullVisitor;
+                var cull = viewer.getCamera().getRenderer()._cullVisitor;
                 var q = Shape.createTexturedBoxGeometry( 0, 0, 0, 1, 1, 1 );
 
                 var node0 = new MatrixTransform();
@@ -463,7 +483,8 @@ define( [
                 var sg = new StateGraph();
                 rs.setViewport( new Viewport() );
                 cull.pushProjectionMatrix( Matrix.create() );
-                cull.pushModelviewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
+                cull.pushModelViewMatrix( Matrix.create() );
                 cull.setRenderStage( rs );
                 cull.setStateGraph( sg );
                 cull.setComputeNearFar( false );
@@ -471,16 +492,225 @@ define( [
                 root.accept( cull );
                 rs.sort();
 
-                var state = new State();
+                var state = new State( new ShaderGeneratorProxy() );
                 var fakeRenderer = mockup.createFakeRenderer();
-                fakeRenderer.validateProgram = function() { return true; };
-                fakeRenderer.getProgramParameter = function() { return true; };
-                fakeRenderer.isContextLost = function() { return false; };
+                fakeRenderer.validateProgram = function () {
+                    return true;
+                };
+                fakeRenderer.getProgramParameter = function () {
+                    return true;
+                };
+                fakeRenderer.isContextLost = function () {
+                    return false;
+                };
                 state.setGraphicContext( fakeRenderer );
 
                 rs.draw( state );
 
             } )();
+
+            ( function () {
+                var canvas = mockup.createCanvas();
+                var viewer = new Viewer( canvas );
+                viewer.init();
+
+                viewer.frame();
+                var cull = viewer.getCamera().getRenderer()._cullVisitor;
+                var m = cull._currentRenderBin.getStage().positionedAttribute[ 0 ][ 0 ];
+                // Test for HeadLight, matrix should be identity
+                mockup.near( m, [ 1, 0, -0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                ] );
+                // Test for Sky_Light, matrix != identity
+                viewer.setLightingMode( View.LightingMode.SKY_LIGHT );
+                viewer.frame();
+                m = cull._currentRenderBin.getStage().positionedAttribute[ 0 ][ 0 ];
+                mockup.near( m, [ -1, 0, -0, 0,
+                    0, 1, -0, 0,
+                    0, -0, -1, 0,
+                    0, 0, -10, 1
+                ] );
+
+
+                mockup.removeCanvas( canvas );
+
+            } )();
+
+            ( function () {
+                var canvas = mockup.createCanvas();
+                var viewer = new Viewer( canvas, {
+                    'enableFrustumCulling': true
+                } );
+
+                var scene = new Node();
+                var mat = Matrix.create();
+                var mt = new MatrixTransform();
+                var quad = Shape.createTexturedQuadGeometry( -0.5, -0.5, 0, 1, 0, 0, 0, 1, 0, 1, 1 );
+                mt.setMatrix( mat );
+                mt.addChild( quad );
+                scene.addChild( mt );
+                viewer.setSceneData( scene );
+                viewer.init();
+                viewer.updateTraversal();
+
+                // test done inside Camera cullcallback
+                // to get all context
+                var fb = function () {};
+                fb.prototype = {
+                    cull: function ( cam, cull ) {
+
+                        cull.nodePath = [];
+                        cull.nodePath.push( scene );
+                        cull.nodePath.push( mt );
+                        //  push the nodepath, simulating a scene traversal.
+                        var culled = cull.isCulled( quad, cull.nodePath );
+                        ok( culled === false, 'scene should not be culled' );
+                        return false;
+                    }
+                };
+                //Get the cullVisitor in context
+                viewer.getCamera().setCullCallback( new fb() );
+                viewer.updateTraversal();
+                // traverse so that it Build the frustum planes and cullsettings to check against them
+                viewer.renderingTraversal();
+
+
+                // TEST2
+                Matrix.setTrans( mat, 200, 0, 0 );
+                mt.setMatrix( mat ); // dirty Bounds
+
+                // test done inside Camera cullcallback
+                // to get all context
+                var fb2 = function () {};
+                fb2.prototype = {
+                    cull: function ( cam, cull ) {
+                        cull.nodePath = [];
+                        cull.nodePath.push( scene );
+                        cull.nodePath.push( mt );
+                        // Translate outside of the frustum, scene should be culled now
+                        var culled = cull.isCulled( quad, cull.nodePath );
+                        ok( culled === true, 'scene should be culled' );
+
+                        return false;
+                    }
+                };
+                //Get the cullVisitor in context
+                viewer.getCamera().setCullCallback( new fb2() );
+                viewer.updateTraversal();
+                // traverse so that it Build the frustum planes and cullsettings to check against them
+                viewer.renderingTraversal();
+
+                // test3
+                Matrix.makeScale( 500, 0, 0, mat );
+                Matrix.setTrans( mat, 200, 0, 0 );
+                mt.setMatrix( mat ); // dirty Bounds
+
+                // test done inside Camera cullcallback
+                // to get all context
+                var fb3 = function () {};
+                fb3.prototype = {
+                    cull: function ( cam, cull ) {
+                        cull.nodePath = [];
+                        cull.nodePath.push( scene );
+                        cull.nodePath.push( mt );
+                        // Translate outside of the frustum and scale, node should not be culled now
+                        var culled = cull.isCulled( quad, cull.nodePath );
+                        ok( culled === false, 'scene should not be culled' );
+                        return false;
+                    }
+                };
+                //Get the cullVisitor in context
+                viewer.getCamera().setCullCallback( new fb3() );
+                viewer.updateTraversal();
+                // traverse so that it Build the frustum planes and cullsettings to check against them
+                viewer.renderingTraversal();
+
+                // tests finished
+                mockup.removeCanvas( canvas );
+            } )();
+
         } );
+
+
+        test( 'CullVisitor World/View matrix', function () {
+
+            var checkLeaf = function ( leaf ) {
+                var tmp = Matrix.create();
+                Matrix.mult( leaf._view, leaf._modelWorld, tmp );
+
+                mockup.near( tmp, leaf._modelView );
+                //ok( mockup.check_near( tmp, leaf.modelview ), 'View * World === ModelView' );
+            };
+
+            var q = Shape.createTexturedBoxGeometry( 0, 0, 0, 1, 1, 1 );
+
+            var node4 = new Node();
+            var node5 = new Node();
+            node4.addChild( node5 );
+            var camera4 = new Camera();
+            camera4.setReferenceFrame( TransformEnums.ABSOLUTE_RF );
+            Matrix.makeLookAt( [ 0, 20, 10 ], [ 0, 2, 0 ], [ 0, 0, 1 ], camera4.getViewMatrix() );
+            node5.addChild( camera4 );
+            var node6 = new MatrixTransform();
+            Matrix.makeTranslate( 0, 0, -10, node6.getMatrix() );
+            camera4.addChild( node6 );
+            node6.addChild( q );
+
+            var node0 = new MatrixTransform();
+            Matrix.makeTranslate( 0, 0, -10, node0.getMatrix() );
+            node0.getOrCreateStateSet().setName( 'Node0' );
+            node0.addChild( q );
+
+            var node1 = new MatrixTransform();
+            Matrix.makeTranslate( 0, 0, 5, node1.getMatrix() );
+            node1.getOrCreateStateSet().setName( 'Node1' );
+            node1.addChild( q );
+
+            var camera0 = new Camera();
+            var node2 = new MatrixTransform();
+            Matrix.makeTranslate( 0, 0, 5, node1.getMatrix() );
+            camera0.addChild( node2 );
+            node2.addChild( q );
+
+
+            var camera1 = new Camera();
+            camera1.setReferenceFrame( TransformEnums.ABSOLUTE_RF );
+            Matrix.makeLookAt( [ 0, 0, 0 ], [ 0, 2, 0 ], [ 0, 0, 1 ], camera1.getViewMatrix() );
+            var node3 = new MatrixTransform();
+            Matrix.makeTranslate( 0, 0, 5, node3.getMatrix() );
+            camera1.addChild( node3 );
+            node3.addChild( q );
+
+            var root = new Node();
+            root.addChild( node4 );
+            root.addChild( node1 );
+            root.addChild( camera0 );
+            root.addChild( node0 );
+            root.addChild( camera1 );
+
+            var cull = new CullVisitor();
+            var rs = new RenderStage();
+            var sg = new StateGraph();
+            rs.setViewport( new Viewport() );
+            cull.pushProjectionMatrix( Matrix.create() );
+            cull.pushModelViewMatrix( Matrix.create() );
+            cull.pushModelViewMatrix( Matrix.create() );
+            cull.setRenderStage( rs );
+            cull.setStateGraph( sg );
+            cull.setComputeNearFar( false );
+
+            root.accept( cull );
+
+            ok( cull._reserveLeafStack.length > 1, 'check we have leaf to validate this test' );
+            for ( var i = 0; i < cull._reserveLeafStack.length - 1; i++ ) {
+                checkLeaf( cull._reserveLeafStack[ i ] );
+            }
+
+        } );
+
+
     };
+
 } );

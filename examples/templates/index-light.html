@@ -7,16 +7,21 @@
 
     <style type="text/css">
     /* Custom CSS goes here */
-    #ViewContainer {
-      position: absolute;
-    }
+    <!-- #ViewContainer { -->
+    <!--   position: absolute; -->
+    <!-- } -->
+    <!-- #View { -->
+    <!--   display: block; -->
+    <!-- } -->
     </style>
 
     <!-- Javascript -->
+    <script type="text/javascript" src="../vendors/es5-shim.js"></script>
+    <script type="text/javascript" src="../vendors/es6-shim.js"></script>
     <script type="text/javascript" src="../vendors/dat.gui.js"></script>
-    <script type="text/javascript" src="../vendors/Q-0.9.7.js"></script>
-    <script type="text/javascript" src="../vendors/Hammer-1.0.5.js"></script>
-    <script type="text/javascript" src="../vendors/Leap.js"></script>
+    <script type="text/javascript" src="../vendors/q-0.9.7.js"></script>
+    <script type="text/javascript" src="../vendors/hammer-1.0.5.js"></script>
+    <script type="text/javascript" src="../vendors/leap.js"></script>
     <script type="text/javascript" src="../../builds/dist/OSG.js"></script>
     <script type="text/javascript" src="main.js"></script>
 
@@ -26,8 +31,9 @@
 
 <body class="osgjs-theme-light">
 
-  <div id="ViewContainer">
-    <canvas id="3DView"></canvas>
+  <div id="ViewContainer" class="osgjs-fullpage">
+    <!-- very important change the size of the parent element instead-->
+    <canvas id="View" style="height:100%;width:100%;" oncontextmenu="return false;"></canvas>
   </div>
 
   <div class="osgjs-info osgjs-info-dark">
@@ -39,7 +45,7 @@
 
     <div class="osgjs-description">
       Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-      tempor incididunt ut labore et dolore magna aliqua.<br>
+      tempor incididunt ut labore et dolore magna aliqua.
       <a href="#">Read the blog post for more info</a>
     </div>
 

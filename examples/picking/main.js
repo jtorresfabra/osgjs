@@ -40,32 +40,7 @@ function getShader() {
         'varying vec3 vNormal;',
         'varying vec3 vInter;',
 
-        'const vec3 vecLight = vec3( 0.06189, 0.12379, 0.99037 );',
-        'const vec3 colorBackface = vec3( 0.45, 0.21, 0.13 );',
-        'const float shininess = 500.0;',
-
         'void main( void ) {',
-        '  vec3 fragColor;',
-        '  vec3 normal;',
-        '  if(gl_FrontFacing)',
-        '  {',
-        '    normal = vNormal;',
-        '    fragColor = vNormal * 0.5 + 0.5;',
-        '  }',
-        '  else',
-        '  {',
-        '    normal = -vNormal;',
-        '    fragColor = colorBackface;',
-        '  }',
-
-        '  float dotLN = dot( normal, vecLight );',
-        '  vec3 vecR = normalize( 2.0 * dotLN * normal - vecLight );',
-        '  float dotRVpow = pow( dot( vecR, vecLight ), shininess );',
-        '  vec3 ambiant = fragColor * 0.5;',
-        '  vec3 diffuse = fragColor * 0.5 * max( 0.0, dotLN );',
-        '  vec3 specular = fragColor * 0.8 * max( 0.0, dotRVpow );',
-        '  fragColor = ambiant + diffuse + specular;',
-
         '  float t = mod( uTime * 0.5, 1000.0 ) / 1000.0;', // time [0..1]
         '  t = t > 0.5 ? 1.0 - t : t;', // [0->0.5] , [0.5->0]
         '  vec3 vecDistance = ( vVertex - vInter );',
@@ -75,7 +50,7 @@ function getShader() {
         '  else if ( dotSquared < uRadiusSquared )',
         '    discard;',
         '  else',
-        '    gl_FragColor = vec4( fragColor, 1.0 );',
+        '    gl_FragColor = vec4( vNormal * 0.5 + 0.5, 1.0 );',
         '}'
     ].join( '\n' );
 
@@ -84,7 +59,7 @@ function getShader() {
         new osg.Shader( osg.Shader.FRAGMENT_SHADER, fragmentshader ) );
 
     return program;
-}
+};
 
 function loadUrl( url, viewer, node, unifs ) {
     osg.log( 'loading ' + url );
@@ -108,7 +83,7 @@ function loadModel( data, viewer, node, unifs ) {
         node.addChild( child );
         viewer.getManipulator().computeHomePosition();
 
-        child.getOrCreateStateSet().setAttributeAndMode( getShader() );
+        child.getOrCreateStateSet().setAttributeAndModes( getShader() );
         child.getOrCreateStateSet().addUniform( unifs.center );
         child.getOrCreateStateSet().addUniform( unifs.radius2 );
         child.getOrCreateStateSet().addUniform( unifs.time );
@@ -126,12 +101,11 @@ function loadModel( data, viewer, node, unifs ) {
 };
 
 function createScene( viewer, unifs ) {
-    var canvas = document.getElementById( '3DView' );
 
     var root = new osg.Node();
 
     loadUrl( '../ssao/raceship.osgjs', viewer, root, unifs );
-    root.getOrCreateStateSet().setAttributeAndMode( new osg.CullFace( osg.CullFace.DISABLE ) );
+    root.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( osg.CullFace.DISABLE ) );
 
     var UpdateCallback = function( base ) {
         this.baseTime_ = ( new Date ).getTime();
@@ -151,7 +125,8 @@ function projectToScreen( cam, hit ) {
     osg.Matrix.preMult( mat, cam.getViewport() ? cam.getViewport().computeWindowMatrix() : osg.Matrix.create() );
     osg.Matrix.preMult( mat, cam.getProjectionMatrix() );
     osg.Matrix.preMult( mat, cam.getViewMatrix() );
-    osg.Matrix.preMult( mat, osg.computeLocalToWorld( hit.nodepath ) );
+    // Node 0 in nodepath is the Camera of the Viewer, so we take next child
+    osg.Matrix.preMult( mat, osg.computeLocalToWorld( hit.nodepath.slice( 1 ) ) );
 
     var pt = [ 0.0, 0.0, 0.0 ];
     osg.Matrix.transformVec3( mat, hit.point, pt );
@@ -162,9 +137,7 @@ window.addEventListener( 'load',
     function() {
         OSG.globalify();
 
-        var canvas = document.getElementById( '3DView' );
-        canvas.style.width = canvas.width = window.innerWidth;
-        canvas.style.height = canvas.height = window.innerHeight;
+        var canvas = document.getElementById( 'View' );
 
         var unifs = {
             center: osg.Uniform.createFloat3( new Float32Array( 3 ), 'uCenterPicking' ),
@@ -208,7 +181,7 @@ window.addEventListener( 'load',
                 var pty = parseInt( canvas.height - pt[ 1 ], 10 ) / ratioY;
                 var d = document.getElementById( 'picking' );
                 d.innerText = 'x: ' + ptx + ' ' + 'y: ' + pty + '\n' + ptFixed;
-                d.style.webkitTransform = 'translate3d(' + ptx + 'px,' + pty + 'px,0)';
+                d.style.transform = 'translate3d(' + ptx + 'px,' + pty + 'px,0)';
             }
 
         }, true );

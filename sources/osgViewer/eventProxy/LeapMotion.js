@@ -1,5 +1,5 @@
 define( [
-    'Leap',
+    'leap',
     'osg/Notify'
 ], function ( Leap, Notify ) {
 
@@ -11,6 +11,10 @@ define( [
 
     LeapMotion.prototype = {
         init: function ( args ) {
+
+            // add condition if no leap in global space
+            if ( typeof Leap === 'undefined' || !Leap.Controller)
+                return;
 
             var self = this;
             this._controller = new Leap.Controller( {

@@ -1,19 +1,17 @@
 /**
  * @author Jordi Torres
  */
-
-
 define( [
-    'Q',
+    'q',
     'osg/Utils',
     'osg/Lod',
     'osg/NodeVisitor',
     'osg/Matrix',
-    'osg/Vec3',
-    'osg/Node',
-    'osg/Geometry',
-    'osg/Notify'
-], function ( Q, MACROUTILS, Lod, NodeVisitor, Matrix, Vec3, Node, Geometry, Notify ) {
+    'osg/Vec3'
+], function ( Q, MACROUTILS, Lod, NodeVisitor, Matrix, Vec3 ) {
+
+    'use strict';
+
     /**
      *  PagedLOD that can contains paged child nodes
      *  @class PagedLod
@@ -22,8 +20,10 @@ define( [
         Lod.call( this );
         this._perRangeDataList = [];
         this._loading = false;
-        this._expiryTime = 10.0;
+        this._expiryTime = 0.0;
+        this._expiryFrame = 0;
         this._centerMode = Lod.USER_DEFINED_CENTER;
+        this._frameNumberOfLastTraversal = 0;
     };
 
     /**
@@ -85,117 +85,38 @@ define( [
 
         addChildNode: function ( node ) {
             Lod.prototype.addChildNode.call( this, node );
-            // this.perRangeDataList.push ( null );
         },
 
-        loadNode: function ( perRangeData, node, databasePager ) {
-            if ( perRangeData.function === undefined )
-                this.loadNodes( perRangeData, node, databasePager );
-            else this.loadNodeFromFunction( perRangeData, node );
+        setFrameNumberOfLastTraversal: function ( frameNumber ) {
+            this._frameNumberOfLastTraversal = frameNumber;
         },
 
-        loadNodes: function ( perRangeData , node , databasePager ) {
+        getFrameNumberOfLastTraversal: function () {
+            return this._frameNumberOfLastTraversal;
 
-            var promiseArray = [];
-            for (var i = 0, j = perRangeData.filename.length; i < j; i++) {
-                promiseArray.push( this.loadURL( perRangeData.filename[ i ] ) );
-            }
-            Q.all( promiseArray ).then( function( ) {
-                // All the results from Q.all are on the argument as an array
-                // Now insert children in the right order
-                var g = new Node();
-                for ( var i = 0, j = promiseArray.length ; i < j; i++ )
-                {
-                    g.addChild( promiseArray[ i ] );
-                }
-                databasePager.addNodeToQueue ( g, node );
-                //node.addChildNode(g);
-            } );
         },
-
-        loadURL: function ( url ) {
-            // TODO:
-            // we should ask to the Cache if the data is in the IndexedDB first
-            var ReaderParser = require( 'osgDB/ReaderParser' );
-            Notify.log( 'loading ' + url );
-            var defer = Q.defer();
-            var req = new XMLHttpRequest();
-            req.open( 'GET', url, true );
-            req.onload = function ( aEvt ) {
-                var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
-                Q.when( promise ).then( function ( child ) {
-                    defer.resolve( child );
-                } );
-                Notify.log( 'success ' + url, aEvt );
-            };
-
-            req.onerror = function ( aEvt ) {
-                Notify.error( 'error ' + url, aEvt );
-            };
-            req.send( null );
-            return defer.promise;
+        setTimeStamp: function ( childNo, timeStamp ) {
+            this._perRangeDataList[ childNo ].timeStamp = timeStamp;
         },
-
-        loadNodeFromURL: function ( perRangeData, node, databasePager ) {
-            // TODO:
-            // we should ask to the Cache if the data is in the IndexedDB first
-            var ReaderParser = require( 'osgDB/ReaderParser' );
-            Notify.log( 'loading ' + perRangeData.filename );
-            var req = new XMLHttpRequest();
-            req.open( 'GET', perRangeData.filename, true );
-            req.onload = function ( aEvt ) {
-                var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
-                Q.when( promise ).then( function ( child ) {
-                    databasePager.addNodeToQueue ( child, node );
-                    // node.addChildNode( child );
-                } );
-                Notify.log( 'success ' + perRangeData.filename, aEvt );
-            };
-
-            req.onerror = function ( aEvt ) {
-                Notify.error( 'error ' + perRangeData.filename, aEvt );
-            };
-            req.send( null );
+        setFrameNumber: function ( childNo, frameNumber ) {
+            this._perRangeDataList[ childNo ].frameNumber = frameNumber;
         },
-
-        loadNodeFromFunction: function ( perRangeData, node ) {
-            // Need to call with this paged lod as parent
-            Q.when( ( perRangeData.function )( this ) ).then( function ( child ) {
-                node.addChildNode( child );
-            } );
+        getDatabaseRequest: function ( childNo ) {
+            return this._perRangeDataList[ childNo ].dbrequest;
         },
-
-        removeExpiredChildren: function ( frameStamp, gl ) {
-
-            var ReleaseVisitor = function ( gl ) {
-                NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
-                this.gl = gl;
-            };
-            ReleaseVisitor.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
-                apply: function ( node ) {
-                    if ( node instanceof Geometry ) {
-                        node.releaseGLObjects( this.gl );
-                    }
-                    this.traverse( node );
-                }
-            } );
-            if ( frameStamp.getFrameNumber() === 0 ) return;
-            var numChildren = this.children.length;
-            for ( var i = numChildren - 1; i > 0; i-- ) {
-                //First children never expires
-
-                var timed = frameStamp.getSimulationTime() - this._perRangeDataList[ i ].timeStamp;
-                if ( ( timed > this._expiryTime ) && ( this._perRangeDataList[ i ].filename.length > 0 ||
-                                                    this._perRangeDataList[ i ].function !== undefined ) ){
-                    if ( i === this.children.length - 1 ) {
-                        this.children[ i ].accept( new ReleaseVisitor( gl ) );
-                        this.removeChild( this.children[ i ] );
-                        this._perRangeDataList[ i ].loaded = false;
-                        this._perRangeDataList[ i ].dbrequest = undefined;
-                        numChildren--;
-                    }
-                } else {
-                    return;
+        removeExpiredChildren: function ( expiryTime, expiryFrame, removedChildren ) {
+            var i = this.children.length - 1;
+            var timed, framed;
+            timed = this._perRangeDataList[ i ].timeStamp + this._expiryTime;
+            framed = this._perRangeDataList[ i ].frameNumber + this._expiryFrame;
+            if ( timed < expiryTime && framed < expiryFrame && ( this._perRangeDataList[ i ].filename.length > 0 ||
+                this._perRangeDataList[ i ].function !== undefined ) ) {
+                removedChildren.push( this.children[ i ] );
+                this.removeChild( this.children[ i ] );
+                this._perRangeDataList[ i ].loaded = false;
+                if ( this._perRangeDataList[ i ].dbrequest !== undefined ) {
+                    this._perRangeDataList[ i ].dbrequest._groupExpired = true;
+                    //this._perRangeDataList[ i ].dbrequest = undefined;
                 }
             }
         },
@@ -207,12 +128,15 @@ define( [
             var zeroVector = Vec3.create();
             var eye = Vec3.create();
             var viewModel = Matrix.create();
+
             return function ( visitor ) {
+
                 var traversalMode = visitor.traversalMode;
                 var updateTimeStamp = false;
+
                 if ( visitor.getVisitorType() === NodeVisitor.CULL_VISITOR ) {
+                    this._frameNumberOfLastTraversal = visitor.getFrameStamp().getFrameNumber();
                     updateTimeStamp = true;
-                    //this._frameNumberOfLastTraversal = visitor.getFrameStamp().getFrameNumber();
                 }
 
                 switch ( traversalMode ) {
@@ -228,7 +152,7 @@ define( [
                     var requiredRange = 0;
 
                     // Calculate distance from viewpoint
-                    var matrix = visitor.getCurrentModelviewMatrix();
+                    var matrix = visitor.getCurrentModelViewMatrix();
                     Matrix.inverse( matrix, viewModel );
                     if ( this._rangeMode === Lod.DISTANCE_FROM_EYE_POINT ) {
                         Matrix.transformVec3( viewModel, zeroVector, eye );
@@ -237,11 +161,11 @@ define( [
                     } else {
                         // Calculate pixels on screen
                         var projmatrix = visitor.getCurrentProjectionMatrix();
-                        // focal lenght is the value stored in projmatrix[0] 
+                        // focal lenght is the value stored in projmatrix[0]
                         requiredRange = this.projectBoundingSphere( this.getBound(), matrix, projmatrix[ 0 ] );
                         // Get the real area value
                         requiredRange = ( requiredRange * visitor.getViewport().width() * visitor.getViewport().width() ) * 0.25;
-                        if ( requiredRange < 0 ) requiredRange = this._range[ this._range.length -1 ][ 0 ];
+                        if ( requiredRange < 0 ) requiredRange = this._range[ this._range.length - 1 ][ 0 ];
                     }
 
                     var needToLoadChild = false;
@@ -249,10 +173,12 @@ define( [
                     for ( var j = 0; j < this._range.length; ++j ) {
                         if ( this._range[ j ][ 0 ] <= requiredRange && requiredRange < this._range[ j ][ 1 ] ) {
                             if ( j < this.children.length ) {
+
                                 if ( updateTimeStamp ) {
                                     this._perRangeDataList[ j ].timeStamp = visitor.getFrameStamp().getSimulationTime();
-                                    //this.perRangeDataList[j].frameNumber = visitor.getFrameStamp().getFrameNumber();
+                                    this._perRangeDataList[ j ].frameNumber = visitor.getFrameStamp().getFrameNumber();
                                 }
+
                                 this.children[ j ].accept( visitor );
                                 lastChildTraversed = j;
                             } else {
@@ -266,40 +192,39 @@ define( [
 
                             if ( updateTimeStamp ) {
                                 this._perRangeDataList[ numChildren - 1 ].timeStamp = visitor.getFrameStamp().getSimulationTime();
-                                //this.perRangeDataList[numChildren -1].frameNumber = visitor.getFrameStamp().getFrameNumber();
+                                this._perRangeDataList[ numChildren - 1 ].frameNumber = visitor.getFrameStamp().getFrameNumber();
                             }
 
                             this.children[ numChildren - 1 ].accept( visitor );
                         }
                         // now request the loading of the next unloaded child.
-                        if ( numChildren < this._range.length ) {
-
-                            // Here we should do the request
+                        if ( numChildren < this._perRangeDataList.length ) {
+                            // compute priority from where abouts in the required range the distance falls.
+                            var priority = ( this._range[ numChildren ][ 0 ] - requiredRange ) / ( this._range[ numChildren ][ 1 ]- this._range[ numChildren ][ 0 ] );
+                            if ( this._rangeMode === Lod.PIXEL_SIZE_ON_SCREEN ) {
+                                priority = -priority;
+                            }
+                            // Here we do the request
                             var group = visitor.nodePath[ visitor.nodePath.length - 1 ];
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
-                                //
-                                if ( !this._perRangeDataList[ numChildren ].filename.length )
-                                    this.loadNode( this._perRangeDataList[ numChildren ], group, visitor.databasePager );
-                                else
-                                    this._perRangeDataList[ numChildren ].dbrequest = visitor.databasePager.requestNodeFile( this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime() );
+                                var dbhandler = visitor.getDatabaseRequestHandler();
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
-                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined)
+                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined) {
                                     this._perRangeDataList[ numChildren ].dbrequest._timeStamp = visitor.getFrameStamp().getSimulationTime();
+                                    this._perRangeDataList[ numChildren ].dbrequest._priority = priority;
+                                }
                             }
                         }
                     }
-                    // Remove the expired childs if any
-                    this.removeExpiredChildren( visitor.getFrameStamp(), visitor.getCurrentCamera().getGraphicContext() );
                     break;
-
                 default:
                     break;
                 }
             };
         } )()
-
 
 
     } ), 'osg', 'PagedLOD' );

@@ -1,9 +1,9 @@
 define( [
+    'vendors/q',
     'osgDB/Input',
-    'vendors/Q',
     'osg/Notify',
     'osg/Image'
-], function ( Input, Q, Notify, Image ) {
+], function ( Q, Input, Notify, Image ) {
 
     return function () {
 
@@ -114,6 +114,20 @@ define( [
             var input = new Input( );
             Q.when( input.readBinaryArrayURL('toto', { readBinaryArrayURL: readBinaryArrayURL} ) ).then( function ( value ) {
                 ok ( calledBinaryArray, true, "readBinaryArray replacement has been called");
+                start();
+            } );
+
+        } );
+
+        asyncTest( 'Input.readNodeURL with replacement option', function () {
+            var calledNodeURL = false;
+            var readNodeURL = function( url, options ) {
+                calledNodeURL = true;
+                return true;
+            };
+            var input = new Input( );
+            Q.when( input.readNodeURL('toto', { readNodeURL: readNodeURL } ) ).then( function ( value ) {
+                ok ( calledNodeURL, true, "readNodeURL replacement has been called");
                 start();
             } );
 

@@ -4,151 +4,386 @@
 
 
 define( [
-    'Q',
+    'q',
     'osg/Utils',
+    'osg/NodeVisitor',
+    'osg/PagedLOD',
+    'osg/Timer',
     'osg/Node'
-], function ( Q, MACROUTILS, Node ) {
+], function ( q, MACROUTILS, NodeVisitor, PagedLOD, Timer, Node ) {
+
+    'use strict';
     /**
-     *  PagedLOD that can contains paged child nodes
-     *  @class PagedLod
+     * Database paging class which manages the loading of files
+     * and synchronizing of loaded models with the main scene graph.
+     *  @class DatabasePager
      */
     var DatabasePager = function () {
         this._pendingRequests = [];
         this._pendingNodes = [];
         this._loading = false;
         this._progressCallback = undefined;
+        this._lastCB = true;
+        this._activePagedLODList = new Set();
+        this._childrenToRemoveList = new Set();
+        this._downloadingRequestsNumber = 0;
+        this._maxRequestsPerFrame = 1;
+        // In OSG the targetMaximumNumberOfPagedLOD is 300 by default
+        // here we set 75 as we need to be more strict with memory in a browser
+        // This value can be setted using setTargetMaximumNumberOfPageLOD method.
+        this._targetMaximumNumberOfPagedLOD = 100;
     };
 
     var DatabaseRequest = function () {
         this._loadedModel = undefined;
         this._group = undefined;
-        this._urls = [];
+        this._url = [];
+        this._function = undefined;
         this._timeStamp = 0.0;
-    //  this.frameNumber = 0;
-    //    this.frameNumberOfLastTraversal = 0;
+        this._groupExpired = false;
+        this._priority = 0.0;
     };
+
+    var FindPagedLODsVisitor = function ( pagedLODList, frameNumber ) {
+        NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
+        this._activePagedLODList = pagedLODList;
+        this._frameNumber = frameNumber;
+    };
+    FindPagedLODsVisitor.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
+        apply: function ( node ) {
+            if ( node.getTypeID() === PagedLOD.getTypeID() ) {
+                node.setFrameNumberOfLastTraversal( this._frameNumber );
+                this._activePagedLODList.add( node );
+            }
+            this.traverse( node );
+        }
+    } );
+
+    var ReleaseVisitor = function ( gl ) {
+        NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
+        this.gl = gl;
+    };
+    ReleaseVisitor.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
+        apply: function ( node ) {
+            node.releaseGLObjects( this.gl );
+            this.traverse( node );
+        }
+    } );
+
+    var ExpirePagedLODVisitor = function () {
+        NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
+        this._childrenList = [];
+    };
+    ExpirePagedLODVisitor.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
+        apply: function ( node ) {
+            if ( node.getTypeID() === PagedLOD.getTypeID() ) {
+                this._childrenList.push( node );
+                this._markRequestsExpired( node );
+            }
+            this.traverse( node );
+        },
+        removeExpiredChildrenAndFindPagedLODs: function ( plod, expiryTime, expiryFrame, removedChildren ) {
+            if ( !plod.children.length ) return;
+            var sizeBefore = removedChildren.length;
+            plod.removeExpiredChildren( expiryTime, expiryFrame, removedChildren );
+            for ( var i = sizeBefore; i < removedChildren.length; i++ ) {
+                removedChildren[ i ].accept( this );
+            }
+            return sizeBefore !== removedChildren.length;
+        },
+        _markRequestsExpired: function ( plod ) {
+            var numRanges = plod._perRangeDataList.length;
+            var request;
+            for ( var i = 0; i < numRanges; i++ ) {
+                request = plod.getDatabaseRequest( i );
+                if ( request !== undefined ) {
+                    request._groupExpired = true;
+                    if (request._promises){
+                    for ( var j = 0; j< request._promises.length; j++ )
+                        request._promises[j].resolve();
+                    }
+                    request._promises = undefined;  
+                    request._loadedModel = null;
+                }
+            }
+        }
+    } );
 
     DatabasePager.prototype = MACROUTILS.objectLibraryClass( {
 
-        addNodeToQueue : function ( dbrequest ) {
-            // We don't need to determine if the dbrequest is in the queue
-            // That is already done in the PagedLOD
-                // var dbrequest = new DatabaseRequest();
-                // dbrequest._loadedModel = node;
-                // dbrequest._group = parent;
-                this._pendingNodes.push( dbrequest );
+        setTargetMaximumNumberOfPageLOD: function ( target ) {
+            this._targetMaximumNumberOfPagedLOD = target;
         },
 
-
-        updateSceneGraph : function( frameStamp ) {
+        getTargetMaximumNumberOfPageLOD: function () {
+            return this._targetMaximumNumberOfPagedLOD;
+        },
+        reset: function () {
+            this._pendingRequests = [];
+            this._pendingNodes = [];
+            this._loading = false;
+            this._lastCB = true;
+            this._activePagedLODList.clear();
+            this._childrenToRemoveList.clear();
+            this._downloadingRequestsNumber = 0;
+            this._maxRequestsPerFrame = 10;
+            this._targetMaximumNumberOfPagedLOD = 75;
+        },
+        updateSceneGraph: function ( frameStamp ) {
             // Progress callback
-            if ( this._progressCallback !== undefined )
-                this._progressCallback( this._pendingRequests.length, this._pendingNodes.length );
-            //this.removeExpiredSubgraphs( frameStamp );
-            if (!this._loading )
-                this.takeRequests ( 1 );
-            this.addLoadedDataToSceneGraph( frameStamp );
-        },
+            if ( this._progressCallback !== undefined ) {
+                // Maybe we should encapsulate this in a promise.
+                this.executeProgressCallback();
+            }
+            // We need to control the time spent in DatabasePager tasks to
+            // avoid making the rendering slow.
+            // Probably we can have a time parameter to manage all the tasks.
+            // Now it is fixed to 0.0025 ms to remove expired childs
+            // and 0.005 ms  to add to the scene the loaded requests.
 
-        removeExpiredSubgraphs : function (/* frameStamp */) {
-         //   console.log( 'frameStamp:' , frameStamp.getFrameNumber( ) );
+            // Remove expired nodes
+            this.removeExpiredSubgraphs( frameStamp, 0.0025 );
+            // Time to do the requests.
+            if ( !this._loading ) this.takeRequests();
+            // Add the loaded data to the graph
+            this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
+        },
+        executeProgressCallback: function() {
+            if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 ) {
+                this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
+                this._lastCB = false;
+            } else {
+                if ( !this._lastCB ) {
+                    this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
+                    this._lastCB = true;
+                }
+            }
+        },
+        setMaxRequestsPerFrame: function ( numRequests ) {
+            this._maxRequestsPerFrame = numRequests;
+        },
+        getMaxRequestsPerFrame: function () {
+            return this._maxRequestsPerFrame;
+        },
+        getRequestListSize: function () {
+            return this._pendingRequests.length + this._downloadingRequestsNumber;
         },
 
         setProgressCallback: function ( cb ) {
             this._progressCallback = cb;
         },
 
-        addLoadedDataToSceneGraph : function ( /*frameStamp*/) {
+        addLoadedDataToSceneGraph: function ( frameStamp, availableTime ) {
+            if ( availableTime <= 0.0 ) return;
             // Prune the list of database requests.
-            this._pendingNodes.sort( function ( r1, r2 ) { return r2._timestamp - r1._timestamp; } );
-            if ( this._pendingNodes.length ){
-            //for (  var i = 0, j = this._pendingNodes.length; i<j; ++i ) {
-                // Take the last element of the array. We are adding the nodes LIFO
-                // Maybe be it's better to add the nodes FIFO?
-                var request = this._pendingNodes.shift( );
-                request._group.addChildNode( request._loadedModel );
+            var elapsedTime = 0.0;
+            var beginTime = Timer.instance().tick();
+            this._pendingNodes.sort( function ( r1, r2 ) {
+                    return r2._timeStamp - r1._timeStamp;
+            } );
 
-                // TODO: control the time using frameStamp to not use too much time
+            for (var i = 0; i< this._pendingNodes.length; i++ ) {
+                if ( elapsedTime > availableTime ) return;
+
+                var request = this._pendingNodes.shift();
+                var frameNumber = frameStamp.getFrameNumber();
+                var timeStamp = frameStamp.getSimulationTime();
+                // If the request is not expired, then add/register new childs
+                if ( request._groupExpired === false ) {
+                    var plod = request._group;
+                    plod.setTimeStamp( plod.children.length, timeStamp );
+                    plod.setFrameNumber( plod.children.length, frameNumber );
+                    plod.addChildNode( request._loadedModel );
+                    // Register PagedLODs.
+                    if ( !this._activePagedLODList.has( plod ) ) {
+                        this.registerPagedLODs( plod, frameNumber );
+                    } else {
+                        this.registerPagedLODs( request._loadedModel, frameNumber );
+                    }
+                } else {
+                    // Clean the request
+                    request._loadedModel = undefined;
+                    request = undefined;
+                }
+                elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             }
+            availableTime -= elapsedTime;
+            return availableTime;
         },
 
-        requestNodeFile: function ( urls, node, timestamp ){
+        isLoading: function () {
+            return this._loading;
+        },
+
+        registerPagedLODs: function ( subgraph, frameNumber ) {
+            if ( !subgraph ) return;
+            subgraph.accept( new FindPagedLODsVisitor( this._activePagedLODList, frameNumber ) );
+        },
+
+        requestNodeFile: function ( func, url, node, timestamp, priority ) {
+            // We don't need to determine if the dbrequest is in the queue
+            // That is already done in the PagedLOD, so we just create the request
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
-            dbrequest._urls = urls;
+            dbrequest._function = func;
+            dbrequest._url = url;
             dbrequest._timeStamp = timestamp;
+            dbrequest._priority = priority;
             this._pendingRequests.push( dbrequest );
             return dbrequest;
         },
 
-        takeRequests: function ( number )
-        {
-
-            if ( this._pendingRequests.length )
-            {
-                //TODO: Sort and Purge old requests depending on timestamp
-                this._pendingRequests.sort(function (r1, r2) { return r2._timestamp - r1._timestamp; } );
-                // remove request if we have more than 50
-                // if ( this._pendingRequests.length > 50 )
-                //     this._pendingRequests = this._pendingRequests.slice ( 0, 50 );
-
-                if( this._pendingRequests.length < number )
-                    number = this._pendingRequests.length;
-                for ( var i =0; i < number ; i++)
-                {
-                    this.processRequest ( this._pendingRequests.shift() );
+        takeRequests: function ( ) {
+            if ( this._pendingRequests.length ) {
+                var numRequests = Math.min( this._maxRequestsPerFrame, this._pendingRequests.length );
+                this._pendingRequests.sort( function ( r1, r2 ) {
+                    // Ask for newer requests first.
+                    var value = r2._timeStamp - r1._timeStamp;
+                    // Ask for the greater priority if the timestamp is the same.
+                    if ( value === 0 ) {
+                        value = r2._priority - r1._priority;
+                    }
+                    return value;
+                    
+                } );
+                for ( var i = 0; i < numRequests; i++ ) {
+                    this._downloadingRequestsNumber++;
+                    this.processRequest( this._pendingRequests.shift() );
                 }
             }
         },
 
         processRequest: function ( dbrequest ) {
-
+            this._loading = true;
             var that = this;
-            var promiseArray = [];
-            for (var i = 0, j = dbrequest._urls.length; i < j; i++) {
-                promiseArray.push( this.loadURL( dbrequest._urls[ i ] ) );
+            // Check if the request is valid;
+            if ( dbrequest._groupExpired ) {
+                //Notify.log( 'DatabasePager::processRequest() Request expired.' );
+                that._downloadingRequestsNumber--;
+                this._loading = false;
+                return;
             }
-
-            Q.all( promiseArray ).then( function( ) {
-                // All the results from Q.all are on the argument as an array
-                // Now insert children in the right order
-                var g = new Node();
-                for ( var i = 0, j = promiseArray.length ; i < j; i++ )
-                {
-                    g.addChild( promiseArray[ i ] );
+            // Load from function
+            if ( dbrequest._function !== undefined ) {
+                q.when( this.loadNodeFromFunction( dbrequest._function, dbrequest._group ) ).then( function ( child ) {
+                    that._downloadingRequestsNumber--;
+                    dbrequest._loadedModel = child;
+                    that._pendingNodes.push( dbrequest );
+                    that._loading = false;
+                } );
+            } else if ( dbrequest._url.length > 0 ) { // Load from URL
+                var promiseArray = [];
+                dbrequest._promises = [];
+                for (var i = 0, j = dbrequest._url.length; i < j; i++) {
+                    if ( dbrequest._url[ i ] !== '' ) {
+                       promiseArray.push( this.loadNodeFromURL( dbrequest._url[ i ] ).promise );
+                       dbrequest._promises.push(this.loadNodeFromURL( dbrequest._url[ i ] ));
+                    }
                 }
-                dbrequest._loadedModel = g;
-                that._pendingNodes.push( dbrequest );
-                that._loading = false;
-                //node.addChildNode(g);
-            } );
+                q.all( promiseArray ).then( function( ) {
+                    // All the results from Q.all are on the argument as an array
+                    // Now insert children in the right order
+                    var g = new Node();
+                    for ( var i = 0, j = promiseArray.length ; i < j; i++ ) {
+                        g.addChild( promiseArray[ i ] );
+                    }
+                    that._downloadingRequestsNumber--;
+                    dbrequest._loadedModel = g;
+                    that._pendingNodes.push( dbrequest );
+                    that._loading = false;
+                    dbrequest._promises = undefined;
+                    //node.addChildNode(g);
+                } );
+            }
         },
 
+        loadNodeFromFunction: function ( func, plod ) {
+            // Need to call with pagedLOD as parent, to be able to have multiresolution structures.
+            var defer = q.defer();
+            q.when( ( func )( plod ) ).then( function ( child ) {
+                defer.resolve( child );
+            } );
+            return defer;
+        },
 
-        loadURL: function ( url ) {
-            // TODO:
-            // we should ask to the Cache if the data is in the IndexedDB first
+        loadNodeFromURL: function ( url ) {
             var ReaderParser = require( 'osgDB/ReaderParser' );
-            var defer = Q.defer();
-            var req = new XMLHttpRequest();
-            req.open( 'GET', url, true );
-            req.onload = function ( ) {
-                this._loading = true;
-                var promise = ReaderParser.parseSceneGraph( JSON.parse( req.responseText ) );
-                Q.when( promise ).then( function ( child ) {
-                    defer.resolve( child );
-                } );
-                //console.log( 'success ' + url, aEvt );
-            };
+            var defer = q.defer();
+            // Call to ReaderParser just in case there is a custom readNodeURL Callback
+            // See osgDB/Options.js and/or osgDB/Input.js
+            // TODO: We should study if performance can be improved if separating the XHTTP request from
+            // the parsing. This way several/many request could be done at the same time.
+            // Also we should be able to cancel requests, so there is a need to have access
+            // to the HTTPRequest Object
+            q.when( ReaderParser.readNodeURL( url ) ).then( function ( child ) {
+                defer.resolve( child );
+            } );
+            return defer;
+        },
 
-            req.onerror = function ( aEvt ) {
-                console.error( 'error ' + url, aEvt );
-            };
-            req.send( null );
-            return defer.promise;
+        releaseGLExpiredSubgraphs: function ( gl, availableTime ) {
+            if ( availableTime <= 0.0 ) return;
+            // We need to test if we have time to flush
+            var elapsedTime = 0.0;
+            var beginTime = Timer.instance().tick();
+            var that = this;
+            this._childrenToRemoveList.forEach( function ( node ) {
+                // If we don't have more time, break the loop.
+                if ( elapsedTime > availableTime ) return false;
+                that._childrenToRemoveList.delete( node );
+                node.accept( new ReleaseVisitor( gl ) );
+                node.removeChildren();
+                node = null;
+                elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
+            } );
+            availableTime -= elapsedTime;
+            return availableTime;
+        },
+
+        removeExpiredSubgraphs: function ( frameStamp, availableTime ) {
+            if ( frameStamp.getFrameNumber() === 0 ) return;
+            var numToPrune = this._activePagedLODList.size - this._targetMaximumNumberOfPagedLOD;
+            var expiryTime = frameStamp.getSimulationTime() - 0.1;
+            var expiryFrame = frameStamp.getFrameNumber() - 1;
+            // First traverse and remove inactive PagedLODs, as their children will
+            // certainly have expired.
+            // TODO: Then traverse active nodes if we still need to prune.
+            if ( numToPrune > 0 ) {
+                availableTime = this.removeExpiredChildren( numToPrune, expiryTime, expiryFrame, availableTime );
+            }
+            return availableTime;
+        },
+
+        removeExpiredChildren: function ( numToPrune, expiryTime, expiryFrame, availableTime ) {
+            // Iterate over the activePagedLODList to remove expired children
+            // We need to control the time spent in remove childs.
+            var elapsedTime = 0.0;
+            var beginTime = Timer.instance().tick();
+            var that = this;
+            var removedChildren = [];
+            var expiredPagedLODVisitor = new ExpirePagedLODVisitor();
+            this._activePagedLODList.forEach( function ( plod ) {
+                if ( elapsedTime > availableTime ) return false;
+                if ( numToPrune < 0 ) return false;
+                // See if plod is still active, so we don't have to prune
+                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return;
+                expiredPagedLODVisitor.removeExpiredChildrenAndFindPagedLODs( plod, expiryTime, expiryFrame, removedChildren );
+                for ( var i = 0; i < expiredPagedLODVisitor._childrenList.length; i++ ) {
+                    that._activePagedLODList.delete( expiredPagedLODVisitor._childrenList[ i ] );
+                    numToPrune--;
+                }
+                // Add to the remove list all the childs deleted
+                for ( i = 0; i < removedChildren.length; i++ ){
+                    that._childrenToRemoveList.add( removedChildren[ i ] );
+                }
+                expiredPagedLODVisitor._childrenList.length = 0;
+                removedChildren.length = 0;
+                elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
+            } );
+            availableTime -= elapsedTime;
+            return availableTime;
         },
     }, 'osgDB', 'DatabasePager' );
 
     return DatabasePager;
 } );
-

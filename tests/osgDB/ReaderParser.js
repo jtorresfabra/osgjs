@@ -1,11 +1,11 @@
 define( [
+    'vendors/q',
     'tests/mockup/mockup',
     'osgDB/ReaderParser',
-    'vendors/Q',
     'osg/Texture',
     'osgDB/Input',
     'osg/PrimitiveSet'
-], function ( mockup, ReaderParser, Q, Texture, Input, PrimitiveSet ) {
+], function ( Q, mockup, ReaderParser, Texture, Input, PrimitiveSet ) {
 
     return function () {
 

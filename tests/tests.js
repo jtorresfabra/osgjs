@@ -1,19 +1,17 @@
 // polyfill for phantomjs
-if (!Function.prototype.bind) {
-    Function.prototype.bind = function (oThis) {
-        if (typeof this !== "function") {
+if ( !Function.prototype.bind ) {
+    Function.prototype.bind = function ( oThis ) {
+        if ( typeof this !== 'function' ) {
             // closest thing possible to the ECMAScript 5 internal IsCallable function
-            throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
+            throw new TypeError( 'Function.prototype.bind - what is trying to be bound is not callable' );
         }
 
-        var aArgs = Array.prototype.slice.call(arguments, 1),
+        var aArgs = Array.prototype.slice.call( arguments, 1 ),
             fToBind = this,
             fNOP = function () {},
             fBound = function () {
-                return fToBind.apply(this instanceof fNOP && oThis
-                                     ? this
-                                     : oThis,
-                                     aArgs.concat(Array.prototype.slice.call(arguments)));
+                return fToBind.apply( this instanceof fNOP && oThis ? this : oThis,
+                    aArgs.concat( Array.prototype.slice.call( arguments ) ) );
             };
 
         fNOP.prototype = this.prototype;
@@ -26,10 +24,13 @@ if (!Function.prototype.bind) {
 requirejs.config( {
     baseUrl: '../sources',
     paths: {
+
+        text: '../sources/vendors/require/text',
+        jquery: '../sources/vendors/jquery',
         vr: '../sources/vendors/vr',
-        Q: '../sources/vendors/Q',
-        Hammer: '../sources/vendors/Hammer',
-        Leap: '../sources/vendors/Leap',
+        q: '../sources/vendors/q',
+        hammer: '../sources/vendors/hammer',
+        leap: '../sources/vendors/leap',
         tests: '../tests/'
     }
 } );
@@ -38,7 +39,7 @@ requirejs.config( {
 
 
 /*global QUnit,define,module,test,ok */
-QUnit.config.testTimeout = 2000;
+QUnit.config.testTimeout = 5000;
 
 define( [
     'OSG',
@@ -48,8 +49,10 @@ define( [
     'tests/osgDB/osgDBTests',
     'tests/osgGA/osgGATests',
     'tests/osgUtil/osgUtilTests',
-    'tests/osgViewer/osgViewerTests'
-], function ( OSG, osg, osgAnimation, osgDB, osgGA, osgUtil, osgViewer ) {
+    'tests/osgViewer/osgViewerTests',
+    'tests/osgShadow/osgShadowTests',
+
+], function ( OSG, osg, osgAnimation, osgDB, osgGA, osgUtil, osgViewer, osgShadow ) {
 
     // hack because of osgPool
     OSG.osg.init();
@@ -60,7 +63,7 @@ define( [
     osgGA();
     osgUtil();
     osgViewer();
-
+    osgShadow();
     // start test when require finished its job
     QUnit.load();
     QUnit.start();

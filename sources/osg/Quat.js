@@ -3,6 +3,8 @@ define( [
     'osg/Notify'
 ], function ( Vec3, Notify ) {
 
+    'use strict';
+
     /** @class Quaternion Operations */
     var Quat = {
         create: function () {
@@ -52,6 +54,10 @@ define( [
 
         length2: function ( a ) {
             return a[ 0 ] * a[ 0 ] + a[ 1 ] * a[ 1 ] + a[ 2 ] * a[ 2 ] + a[ 3 ] * a[ 3 ];
+        },
+
+        length: function ( a ) {
+            return Math.sqrt( a[ 0 ] * a[ 0 ] + a[ 1 ] * a[ 1 ] + a[ 2 ] * a[ 2 ] + a[ 3 ] * a[ 3 ] );
         },
 
         neg: function ( a, result ) {
@@ -129,22 +135,29 @@ define( [
             return result;
         },
 
-        transformVec3: ( function () {
-            var uv = [ 0.0, 0.0, 0.0 ];
-            return function ( q, vec, result ) {
-                // nVidia SDK implementation
-                Vec3.cross( q, vec, uv );
-                Vec3.cross( q, uv, result );
-                Vec3.mult( uv, 2.0 * q[ 3 ], uv );
-                Vec3.mult( result, 2.0, result );
-                Vec3.add( result, uv, result );
-                Vec3.add( result, vec, result );
-                return result;
-            };
-        } )(),
+        transformVec3: function ( q, a, result ) {
+            var x = a[ 0 ];
+            var y = a[ 1 ];
+            var z = a[ 2 ];
+            var qx = q[ 0 ];
+            var qy = q[ 1 ];
+            var qz = q[ 2 ];
+            var qw = q[ 3 ];
+            // calculate quat * vec
+            var ix = qw * x + qy * z - qz * y;
+            var iy = qw * y + qz * x - qx * z;
+            var iz = qw * z + qx * y - qy * x;
+            var iw = -qx * x - qy * y - qz * z;
+
+            // calculate result * inverse quat
+            result[ 0 ] = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+            result[ 1 ] = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+            result[ 2 ] = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+            return result;
+        },
 
         normalize: function ( q, qr ) {
-            var div = 1.0 / this.length2( q );
+            var div = 1.0 / this.length( q );
             qr[ 0 ] = q[ 0 ] * div;
             qr[ 1 ] = q[ 1 ] * div;
             qr[ 2 ] = q[ 2 ] * div;
@@ -174,12 +187,23 @@ define( [
         // we suppose to have unit quaternion
         // multiply 2 quaternions
         mult: function ( a, b, result ) {
-            result[ 0 ] = a[ 0 ] * b[ 3 ] + a[ 1 ] * b[ 2 ] - a[ 2 ] * b[ 1 ] + a[ 3 ] * b[ 0 ];
-            result[ 1 ] = -a[ 0 ] * b[ 2 ] + a[ 1 ] * b[ 3 ] + a[ 2 ] * b[ 0 ] + a[ 3 ] * b[ 1 ];
-            result[ 2 ] = a[ 0 ] * b[ 1 ] - a[ 1 ] * b[ 0 ] + a[ 2 ] * b[ 3 ] + a[ 3 ] * b[ 2 ];
-            result[ 3 ] = -a[ 0 ] * b[ 0 ] - a[ 1 ] * b[ 1 ] - a[ 2 ] * b[ 2 ] + a[ 3 ] * b[ 3 ];
+            var ax = a[ 0 ];
+            var ay = a[ 1 ];
+            var az = a[ 2 ];
+            var aw = a[ 3 ];
+
+            var bx = b[ 0 ];
+            var by = b[ 1 ];
+            var bz = b[ 2 ];
+            var bw = b[ 3 ];
+
+            result[ 0 ] = ax * bw + ay * bz - az * by + aw * bx;
+            result[ 1 ] = -ax * bz + ay * bw + az * bx + aw * by;
+            result[ 2 ] = ax * by - ay * bx + az * bw + aw * bz;
+            result[ 3 ] = -ax * bx - ay * by - az * bz + aw * bw;
             return result;
         },
+
         div: function ( a, b, result ) {
             var d = 1.0 / b;
             result[ 0 ] = a[ 0 ] * d;
@@ -188,6 +212,7 @@ define( [
             result[ 3 ] = a[ 3 ] * d;
             return result;
         },
+
         exp: function ( a, res ) {
             var r = Math.sqrt( a[ 0 ] * a[ 0 ] + a[ 1 ] * a[ 1 ] + a[ 2 ] * a[ 2 ] );
             var et = Math.exp( a[ 3 ] );
@@ -258,8 +283,54 @@ define( [
             this.div( qa, -4.0, qa );
             this.exp( qa, qb );
             return this.mult( qb, qcur, r );
-        }
+        },
 
+        makeRotateFromTo: function ( from, to, out ) {
+            // Now let's get into the real stuff
+            // Use "dot product plus one" as test as it can be re-used later on
+            var dotProdPlus1 = 1.0 + Vec3.dot( from, to );
+
+            // Check for degenerate case of full u-turn. Use epsilon for detection
+            if ( dotProdPlus1 < 1e-7 ) {
+
+                // Get an orthogonal vector of the given vector
+                // in a plane with maximum vector coordinates.
+                // Then use it as quaternion axis with pi angle
+                // Trick is to realize one value at least is >0.6 for a normalized vector.
+                var x = from[ 0 ];
+                var y = from[ 1 ];
+                var z = from[ 2 ];
+                var norm;
+                if ( Math.abs( x ) < 0.6 ) {
+                    norm = Math.sqrt( 1.0 - x * x );
+                    out[ 1 ] = z / norm;
+                    out[ 2 ] = -y / norm;
+                    out[ 0 ] = out[ 3 ] = 0.0;
+                } else if ( Math.abs( y ) < 0.6 ) {
+                    norm = Math.sqrt( 1.0 - y * y );
+                    out[ 0 ] = -z / norm;
+                    out[ 2 ] = x / norm;
+                    out[ 1 ] = out[ 3 ] = 0.0;
+                } else {
+                    norm = Math.sqrt( 1.0 - z * z );
+                    out[ 0 ] = y / norm;
+                    out[ 1 ] = -x / norm;
+                    out[ 2 ] = out[ 3 ] = 0.0;
+                }
+            } else {
+                // Find the shortest angle quaternion that transforms normalized vectors
+                // into one other. Formula is still valid when vectors are colinear
+
+                var s = Math.sqrt( 0.5 * dotProdPlus1 );
+                Vec3.cross( from, to, out );
+                var f = 0.5 / s;
+                out[ 0 ] *= f;
+                out[ 1 ] *= f;
+                out[ 2 ] *= f;
+                out[ 3 ] = s;
+            }
+            return out;
+        }
     };
 
     return Quat;

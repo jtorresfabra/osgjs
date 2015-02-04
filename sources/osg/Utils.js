@@ -1,8 +1,9 @@
 define( [
     'osgUtil/osgPool',
     'osg/StateGraph',
+    'osg/Timer',
     'osg/Notify'
-], function ( osgPool, StateGraph, Notify ) {
+], function ( osgPool, StateGraph, Timer, Notify ) {
 
     // make the warning about StateGraph desappear
     Object.keys( StateGraph );
@@ -14,9 +15,9 @@ define( [
         osgPool.memoryPools.stateGraph = new osgPool.OsgObjectMemoryPool( StateGraphClass ).grow( 50 );
     };
 
-    var toString = Object.prototype.toString;
     Utils.isArray = function ( obj ) {
-        return toString.call( obj ) === '[object Array]';
+        Notify.log('isArray is deprecated, use instead Array.isArray' );
+        return Array.isArray( obj );
     };
 
     Utils.extend = function () {
@@ -154,31 +155,16 @@ define( [
     Utils.setTypeID = function ( classObject ) {
         var className = classObject.prototype.className();
         var typeID = Utils.objectType.generate( className );
+        var getTypeID = function() { return typeID; };
         classObject.typeID = classObject.prototype.typeID = typeID;
+        classObject.getTypeID = classObject.prototype.getTypeID = getTypeID;
     };
 
     Utils.Float32Array = typeof Float32Array !== 'undefined' ? Float32Array : null;
     Utils.Int32Array = typeof Int32Array !== 'undefined' ? Int32Array : null;
+    Utils.Uint8Array = typeof Uint8Array !== 'undefined' ? Uint8Array : null;
     Utils.Uint16Array = typeof Uint16Array !== 'undefined' ? Uint16Array : null;
     Utils.Uint32Array = typeof Uint32Array !== 'undefined' ? Uint32Array : null;
-
-    Utils.performance = {};
-    Utils.performance.now = ( function () {
-        // if no window.performance
-        if ( window.performance === undefined ) {
-            return function () {
-                return Date.now();
-            };
-        }
-
-        var fn = window.performance.now || window.performance.mozNow || window.performance.msNow || window.performance.oNow || window.performance.webkitNow ||
-                function () {
-                    return Date.now();
-            };
-        return function () {
-            return fn.apply( window.performance, arguments );
-        };
-    } )();
 
     Utils.timeStamp = function () {
 
@@ -192,7 +178,7 @@ define( [
     Utils.time = function () {
 
         var fn = Notify.console.time || function ( name ) {
-            times[ name ] = Utils.performance.now();
+            times[ name ] = Timer.instance().tick();
         };
         return fn.apply( Notify.console, arguments );
 
@@ -205,8 +191,7 @@ define( [
             if ( times[ name ] === undefined )
                 return;
 
-            var now = Utils.performance.now();
-            var duration = now - times[ name ];
+            var duration = Timer.instance().deltaM( times[name], Timer.instance().tick() );
 
             Notify.debug( name + ': ' + duration + 'ms');
             times[ name ] = undefined;

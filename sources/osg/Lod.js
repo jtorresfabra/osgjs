@@ -52,8 +52,9 @@ define( [
 
         getCenter: function () {
             if ( ( this._centerMode === Lod.USER_DEFINED_CENTER ) || ( this._centerMode === Lod.UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED ) )
-                return this._userDefinedCenter; 
-            else return this.getBound().center(); 
+
+                return this._userDefinedCenter;
+            else return this.getBound().center();
         },
 
         setCenterMode: function ( centerMode ) {
@@ -66,11 +67,11 @@ define( [
                 bsphere.set( this._userDefinedCenter, this._radius);
                 return bsphere;
             }
-            else if ( this._centerMode === this.UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED && this._radius >= 0.0)
+            else if ( this._centerMode === Lod.UNION_OF_BOUNDING_SPHERE_AND_USER_DEFINED && this._radius >= 0.0)
             {
                 bsphere.set( this._userDefinedCenter, this._radius);
                 var bs = new BoundingSphere();
-                bsphere.expandBy( Node.prototype.computeBound.call( this, bs ) );
+                bsphere.expandByBoundingSphere( Node.prototype.computeBound.call( this, bs ) );
                 return bsphere;
             }
             else
@@ -148,7 +149,7 @@ define( [
 
                 case ( NodeVisitor.TRAVERSE_ACTIVE_CHILDREN ):
                     var requiredRange = 0;
-                    var matrix = visitor.getCurrentModelviewMatrix();
+                    var matrix = visitor.getCurrentModelViewMatrix();
                     Matrix.inverse( matrix, viewModel );
                     // Calculate distance from viewpoint
                     if ( this._rangeMode === Lod.DISTANCE_FROM_EYE_POINT ) {
@@ -158,7 +159,7 @@ define( [
                     } else {
                         // Let's calculate pixels on screen
                         var projmatrix = visitor.getCurrentProjectionMatrix();
-                        // focal lenght is the value stored in projmatrix[0] 
+                        // focal lenght is the value stored in projmatrix[0]
                         requiredRange = this.projectBoundingSphere( this.getBound(), matrix, projmatrix[ 0 ] );
                         // Multiply by a factor to get the real area value
                         requiredRange = ( requiredRange * visitor.getViewport().width() * visitor.getViewport().width() ) * 0.25;

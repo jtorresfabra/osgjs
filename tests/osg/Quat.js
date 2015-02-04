@@ -4,6 +4,8 @@ define( [
     'osg/Matrix'
 ], function ( mockup, Quat, Matrix ) {
 
+    'use strict';
+
     return function () {
 
         module( 'osg' );
@@ -23,6 +25,16 @@ define( [
 
             var q2 = Quat.makeRotate( Math.PI / 4, 0, 0, 1, [] );
             mockup.near( q2, [ 0, 0, 0.382683, 0.92388 ] );
+        } );
+
+        test( 'Quat.makeRotateFromTo', function () {
+            var q1 = Quat.makeRotateFromTo( [ 1, 0, 0 ], [ 0, 1, 0 ], [] );
+            mockup.near( q1, [ 0, 0, 0.707107, 0.707107 ], 1e-5 );
+
+            // it test both makeRotate and makeRotateFromTo
+            var qyrot = Quat.makeRotate( Math.PI / 2, 0, 1, 0, [] );
+            var q2 = Quat.makeRotateFromTo( [ 0, 0, 1 ], [ 1, 0, 0 ], [] );
+            mockup.near( q2, qyrot, 1e-5 );
         } );
 
         // test('Quat.rotateVec3', function() {
@@ -60,6 +72,12 @@ define( [
             var q = [];
             Quat.slerp( 0.5, [ 0, 0.707107, 0, 0.707107 ], [ 0, 0, 0.382683, 0.92388 ], q );
             mockup.near( q, [ 0, 0.388863, 0.210451, 0.896937 ] );
+        } );
+
+        test( 'Quat.transformVec3', function () {
+            var v = [ 1.0, 2.0, 3.0 ];
+            Quat.transformVec3( [ 0, 0.707107, 0, 0.707107 ], v, v );
+            mockup.near( v, [ 3.0, 2.0, -1.0 ] );
         } );
     };
 } );
