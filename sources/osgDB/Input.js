@@ -66,6 +66,9 @@ define( [
         setReadNodeURLCallback: function ( func ) {
             this._defaultOptions.readNodeURL = func;
         },
+        setReadBinaryArrayURLCallback: function ( func ) {
+            this._defaultOptions.readBinaryArrayURL = func;
+        },
         // used to override the type from pathname
         // typically if you want to create proxy object
         registerObject: function ( fullyQualifiedObjectname, constructor ) {
@@ -88,7 +91,6 @@ define( [
         getPrefixURL: function () {
             return this._defaultOptions.prefixURL;
         },
-
         setPagedLODPrefixURL: function ( prefix ) {
             this._defaultOptions.plodPrefixURL = prefix;
         },
@@ -102,6 +104,7 @@ define( [
         getPagedLODSuffixURL: function () {
             return this._defaultOptions.plodSuffixURL;
         },
+
         computeURL: function ( url ) {
 
             if ( typeof this._defaultOptions.prefixURL === 'string' &&
@@ -112,7 +115,16 @@ define( [
 
             return url;
         },
+        computeBinaryURL: function ( url ) {
 
+            if ( typeof this._defaultOptions.prefixURL === 'string' &&
+                this._defaultOptions.plodPrefixURL.length > 0 ) {
+
+                return this._defaultOptions.plodPrefixURL + url;
+            }
+
+            return url;
+        },
         getObjectWrapper: function ( path ) {
             if ( this._objectRegistry[ path ] !== undefined ) {
                 return new( this._objectRegistry[ path ] )();
@@ -215,7 +227,7 @@ define( [
                 return options.readNodeURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
             var defer = Q.defer();
 
@@ -266,7 +278,7 @@ define( [
                 return options.readBinaryArrayURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
 
             if ( this._identifierMap[ url ] !== undefined ) {
