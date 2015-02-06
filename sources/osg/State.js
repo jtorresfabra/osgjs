@@ -659,7 +659,7 @@ define( [
             if ( color !== undefined ) hasColorAttrib = this.vertexAttribMap[ color ];
 
             // no change -> exit
-            if ( this.previousHasColorAttrib === hasColorAttrib ) return;
+           // if ( this.previousHasColorAttrib === hasColorAttrib ) return;
 
             // update uniform
             var uniform = this.uniforms.ArrayColorEnabled.globalDefault;
