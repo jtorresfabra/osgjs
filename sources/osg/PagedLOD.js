@@ -214,6 +214,7 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
+                                if ( this._perRangeDataList[ numChildren ].filename === '' && this._perRangeDataList[ numChildren ].function === undefined ) return;
                                 this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.

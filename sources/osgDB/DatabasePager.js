@@ -235,6 +235,7 @@ define( [
         requestNodeFile: function ( func, url, node, timestamp, priority ) {
             // We don't need to determine if the dbrequest is in the queue
             // That is already done in the PagedLOD, so we just create the request
+            if ( url === '' && func === undefined ) return;
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
             dbrequest._function = func;
