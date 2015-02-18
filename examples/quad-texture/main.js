@@ -4,6 +4,7 @@
     var OSG = window.OSG;
     var osg = OSG.osg;
     var osgDB = OSG.osgDB;
+    var osgUtil = OSG.osgUtil;
     var osgViewer = OSG.osgViewer;
     var $ = window.$;
 
@@ -33,7 +34,7 @@
             texture1Unit0: this._textureNames[ 1 ]
         };
 
-
+        this._model1 = undefined;
 
         this._stateSet1 = undefined;
 
@@ -93,7 +94,9 @@
                 controller = material1.add( this._config, 'texture1Unit0', this._textureNames );
                 controller.onChange( this.updateMaterial1.bind( this ) );
                 this.updateMaterial1();
-
+                var visitor = new osgUtil.DisplayNodeGraphVisitor();
+                this._model1.accept( visitor );
+                visitor.createGraph();
             }.bind( this ) );
 
 
@@ -169,11 +172,11 @@
 
         createScene: function () {
 
-            var model1 = this.getOrCreateModel();
-            this._stateSet1 = model1.getOrCreateStateSet();
+            this._model1 = this.getOrCreateModel();
+            this._stateSet1 = this._model1.getOrCreateStateSet();
             this.updateMaterial1();
 
-            return model1;
+            return this._model1;
         },
 
         run: function ( canvas ) {
