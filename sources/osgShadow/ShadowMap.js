@@ -293,6 +293,7 @@ define( [
             }
             this._textureUnit = this._textureUnitBase + lightNumber;
 
+            this.initTexture();
             this._texture.setLightUnit( lightNumber );
             this._texture.setName( 'ShadowTexture' + this._textureUnit );
             this._cameraShadow.setName( 'light_shadow_camera' + light.getName() );
@@ -301,7 +302,6 @@ define( [
             this._texture.setLightUnit( lightNumber );
             this._receivingStateset.setAttributeAndModes( this._shadowAttribute, StateAttribute.ON | StateAttribute.OVERRIDE );
 
-            this.initTexture();
 
             var casterProgram = this.getShadowCasterShaderProgram();
             this.setShadowCasterShaderProgram( casterProgram );
@@ -349,8 +349,19 @@ define( [
 
             if ( !this._dirty ) return;
 
-            if ( !this._texture )
-                this._texture = new Texture();
+            if ( !this._texture ) {
+                this._texture = new ShadowTexture();
+                this._textureUnitBase = 4;
+                this._textureUnit = this._textureUnitBase;
+            }
+
+            if ( !this._cameraShadow ) {
+                this._cameraShadow = new Camera();
+                this._cameraShadow.setCullCallback( new CameraCullCallback( this ) );
+                this._cameraShadow.setRenderOrder( Camera.PRE_RENDER, 0 );
+                this._cameraShadow.setReferenceFrame( Transform.ABSOLUTE_RF );
+                this._cameraShadow.setClearColor( [ 1.0, 1.0, 1.0, 1.0 ] );
+            }
 
             var texType = this.getTexturePrecision();
             var textureType, textureFormat, texFilterMin, texFilterMag;
@@ -634,9 +645,10 @@ define( [
             var worldLightPos = this._worldLightPos;
 
             //  light pos & lightTarget in World Space
-            Matrix.transformVec3( worldMatrix, light.getPosition(), worldLightPos );
+            Matrix.transformVec4( worldMatrix, light.getPosition(), worldLightPos );
 
             if ( light.getPosition()[ 3 ] !== 0.0 ) {
+
 
                 // not a directionnal light, compute the world light dir
                 var worldLightDir = this._worldLightDir;

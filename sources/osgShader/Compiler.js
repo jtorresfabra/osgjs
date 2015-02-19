@@ -748,9 +748,9 @@ define( [
 
             var func = function ( node ) {
 
-                if ( node.defines && this._map[ node.id ] === undefined ) {
+                if ( node.defines && this._map[ node.getID() ] === undefined ) {
 
-                    this._map[ node.id ] = true;
+                    this._map[ node.getID() ] = true;
                     var c = node.defines();
                     // push all elements of the array on text array
                     // defines must return an array
@@ -793,9 +793,10 @@ define( [
 
             var func = function ( node ) {
 
-                if ( this._map[ node._id ] === undefined ) {
+                var id = node.getID();
+                if ( this._map[ id ] === undefined ) {
 
-                    this._map[ node._id ] = true;
+                    this._map[ id ] = true;
 
                     if ( node.globalDeclaration !== undefined ) {
 
@@ -819,7 +820,8 @@ define( [
 
             var func = function ( node ) {
 
-                if ( this._mapTraverse[ node._id ] !== undefined ) {
+                var id = node.getID();
+                if ( this._mapTraverse[ id ] !== undefined ) {
                     return;
                 }
 
@@ -837,7 +839,7 @@ define( [
 
                     this._text.push( c );
                 }
-                this._mapTraverse[ node._id ] = true;
+                this._mapTraverse[ id ] = true;
             };
 
             func._text = [];
