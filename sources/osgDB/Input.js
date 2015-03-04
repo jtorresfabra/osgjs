@@ -88,7 +88,19 @@ define( [
         getPrefixURL: function () {
             return this._defaultOptions.prefixURL;
         },
+        setPagedLODPrefixURL: function ( prefix ) {
+            this._defaultOptions.plodPrefixURL = prefix;
+        },
+        getPagedLODPrefixURL: function () {
+            return this._defaultOptions.plodPrefixURL;
+        },
 
+        setPagedLODSuffixURL: function ( suffix ) {
+            this._defaultOptions.plodSuffixURL = suffix;
+        },
+        getPagedLODSuffixURL: function () {
+            return this._defaultOptions.plodSuffixURL;
+        },
         computeURL: function ( url ) {
 
             if ( typeof this._defaultOptions.prefixURL === 'string' &&

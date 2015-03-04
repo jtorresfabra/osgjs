@@ -123,7 +123,7 @@ define( [
     };
 
 
-    Viewer.prototype = MACROUTILS.objectInehrit( View.prototype, {
+    Viewer.prototype = MACROUTILS.objectInherit( View.prototype, {
 
         initDeviceEvents: function ( options, canvas ) {
 
@@ -138,13 +138,11 @@ define( [
             eventsBackend.StandardMouseKeyboard.keyboardEventNode = eventsBackend.StandardMouseKeyboard.keyboardEventNode || document;
 
             // hammer, Only activate it if we have a touch device in order to fix problems with IE11
-            if ( 'ontouchstart' in window && navigator.userAgent.indexOf('PhantomJS') === -1 )
-            {
+            if ( 'ontouchstart' in window ) {
                 eventsBackend.Hammer = eventsBackend.Hammer || {};
                 eventsBackend.Hammer.eventNode = eventsBackend.Hammer.eventNode || defaultMouseEventNode;
             }
-
-            // gamepade
+            // gamepad
             eventsBackend.GamePad = eventsBackend.GamePad || {};
 
             this._eventProxy = this.initEventProxy( options );

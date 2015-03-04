@@ -166,6 +166,23 @@ var gruntTasks = {};
 
 } )();
 
+
+var generateVersionFile = function() {
+    var pkg = JSON.parse( fs.readFileSync('package.json' ) );
+    var content = [
+        'define( [], function() {',
+        '    return {',
+        '        name: \'' + pkg.name + '\',',
+        '        version: \'' + pkg.version + '\',',
+        '        author: \'' + pkg.author +'\'',
+        '    };',
+        '} );'
+
+    ];
+    fs.writeFileSync( path.join( SOURCE_PATH, 'version.js'), content.join('\n'));
+};
+
+
 // ## Require.js
 //
 ( function () {
@@ -328,7 +345,7 @@ var gruntTasks = {};
                 //Hammer:
                 {
                     cwd: './',
-                    src: 'examples/vendors/hammer-1.0.5.js',
+                    src: 'examples/vendors/hammer-2.0.4.js',
                     dest: 'examples/vendors/hammer.js'
                 },
                 //RequireTextBuild:
@@ -477,7 +494,6 @@ var gruntTasks = {};
 } )();
 
 
-
 module.exports = function ( grunt ) {
 
     var distFullPath = path.normalize( path.join( __dirname, DIST_PATH ) );
@@ -486,6 +502,10 @@ module.exports = function ( grunt ) {
     grunt.initConfig( extend( {
         pkg: grunt.file.readJSON( 'package.json' )
     }, gruntTasks ) );
+
+
+    generateVersionFile();
+
 
     // grunt.event.on('qunit.testStart', function (name) {
     //     grunt.log.ok("Running test: " + name);
@@ -501,6 +521,7 @@ module.exports = function ( grunt ) {
     //     }
     // });
 
+    grunt.loadNpmTasks( 'grunt-release' );
     grunt.loadNpmTasks( 'grunt-contrib-connect' );
     grunt.loadNpmTasks( 'grunt-contrib-qunit' );
 
@@ -535,5 +556,7 @@ module.exports = function ( grunt ) {
     grunt.registerTask( 'serve', [ 'build', 'connect:dist:keepalive' ] );
     grunt.registerTask( 'website_only', [ 'clean:staticWeb', 'gitclone:staticWeb', 'copy:staticWeb', 'wintersmith_compile:build', 'shell:staticWeb', 'gitcommit:staticWeb', 'gitpush:staticWeb' ] );
     grunt.registerTask( 'website', [ 'default', 'docs', 'website_only' ] );
+
+//    grunt.registerTask( 'release', [ 'release:patch', 'build:sources:dist', 'release:patch' ] );
 
 };

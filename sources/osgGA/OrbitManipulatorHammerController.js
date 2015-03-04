@@ -36,9 +36,16 @@ define( [
                 return 'touches ' + computeTouches( ev ) + ' distance ' + ev.distance + ' x ' + ev.deltaX + ' y ' + ev.deltaY;
             };
             // Set a minimal thresold on pinch event, to be detected after pan
-            hammer.get( 'pinch' ).set( { enable: true, threshold: 0.1 } );
+            hammer.get( 'pinch' ).set( {
+                enable: true,
+                threshold: 0.1
+            } );
             // Let the pan be detected with two fingers.
-            hammer.get( 'pan' ).set( { threshold: 0, pointers: 0 } );
+            hammer.get( 'pan' ).set( {
+                threshold: 0,
+                pointers: 0
+            } );
+
             hammer.get( 'pinch' ).recognizeWith( hammer.get( 'pan' ) );
 
             hammer.on( 'panstart ', function ( event ) {

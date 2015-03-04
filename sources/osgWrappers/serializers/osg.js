@@ -442,7 +442,8 @@ define( [
             str = 'File ' + i;
             plod.setFileName( i, o[ str ] );
         }
-
+        plod.setPrefixURL( input.getPagedLODPrefixURL());
+        plod.setSuffixURL( input.getPagedLODSuffixURL());
         var createChildren = function ( jsonChildren ) {
             var df = Q.defer();
             var promise = input.setJSON( jsonChildren ).readObject();

@@ -31,10 +31,14 @@ define( [
         this._cullCallback = undefined;
         this._cullingActive = true;
         this._numChildrenWithCullingDisabled = 0;
+
+        // it's a tmp object for internal use, do not use
+        this._boundingBox = new BoundingBox();
+
     };
 
     /** @lends Node.prototype */
-    Node.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInehrit( Object.prototype, {
+    Node.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Object.prototype, {
         /**
         Return StateSet and create it if it does not exist yet
         @type StateSet
@@ -227,32 +231,26 @@ define( [
             return this.boundingSphere;
         },
 
-        // TODO: PERF: Heavy GC impact
-        // find why making a closure var for bb breaks (v8&&ffx)
-        // frustum culling sample
-        //var  bbTemp = new BoundingBox();
-        //return function(){
-        //var bb = bbTemp;
-        //bb.init();
-        //...
-        //};}(),
+
         computeBound: function ( bSphere ) {
-            var bb = new BoundingBox();
-            var cc, i, l = this.children.length;
+
+            var l = this.children.length;
+
+            bSphere.init();
+            if ( l === 0 ) return bSphere;
+
+            var cc, i;
+            var bb = this._boundingBox;
+            bb.init();
             for ( i = 0; i < l; i++ ) {
                 cc = this.children[ i ];
                 if ( cc.referenceFrame === undefined || cc.referenceFrame === TransformEnums.RELATIVE_RF ) {
                     bb.expandByBoundingSphere( cc.getBound() );
                 }
             }
-            if ( !bb.valid() ) {
-                bSphere.init();
-                return bSphere;
-            }
+            if ( !bb.valid() ) return bSphere;
+
             bSphere.set( bb.center( bSphere.center() ), 0.0 );
-            // not to do that because bigger results
-            // check frustum culling sample
-            // bsphere.set( bb.center(), bb.radius() );
             for ( i = 0; i < l; i++ ) {
                 cc = this.children[ i ];
                 if ( cc.referenceFrame === undefined || cc.referenceFrame === TransformEnums.RELATIVE_RF ) {
@@ -268,7 +266,7 @@ define( [
                 this.halt = halt;
                 NodeVisitor.call( this, NodeVisitor.TRAVERSE_PARENTS );
             };
-            CollectParentPaths.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
+            CollectParentPaths.prototype = MACROUTILS.objectInherit( NodeVisitor.prototype, {
                 apply: function ( node ) {
                     if ( node.parents.length === 0 || node === this.halt || ( node.referenceFrame !== undefined && node.referenceFrame === TransformEnums.ABSOLUTE_RF ) ) {
                         // copy

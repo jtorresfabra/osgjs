@@ -157,6 +157,7 @@ define( [
                 this._renderStage.setClearColor( camera.getClearColor() );
                 this._renderStage.setClearMask( camera.getClearMask() );
                 this._renderStage.setViewport( camera.getViewport() );
+
                 // pass de dbpager to the cullvisitor, so plod's can do the requests
                 this._cullVisitor.setDatabaseRequestHandler( this._camera.getView().getDatabasePager() );
                 // dont add camera on the stack just traverse it
@@ -185,7 +186,7 @@ define( [
 
             var state = this.getState();
 
-            state.resetApplyMatrix(); // important because cache are used in cullvisitor
+            state.resetCacheFrame(); // important because cache are used in cullvisitor
 
             this._renderStage.draw( state );
 

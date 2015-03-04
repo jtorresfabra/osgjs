@@ -24,6 +24,8 @@ define( [
         this._expiryFrame = 0;
         this._centerMode = Lod.USER_DEFINED_CENTER;
         this._frameNumberOfLastTraversal = 0;
+        this._prefixURL = '';
+        this._suffixURL = '';
     };
 
     /**
@@ -41,7 +43,7 @@ define( [
     };
 
     /** @lends PagedLOD.prototype */
-    PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInehrit( Lod.prototype, {
+    PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Lod.prototype, {
         // Functions here
         setRange: function ( childNo, min, max ) {
             if ( childNo >= this._range.length ) {
@@ -76,6 +78,14 @@ define( [
             } else {
                 this._perRangeDataList[ childNo ].function = func;
             }
+        },
+
+        setPrefixURL: function ( prefixURL ) {
+            this._prefixURL = prefixURL;
+        },
+
+        setSuffixURL: function ( suffixURL ) {
+            this._suffixURL = suffixURL;
         },
 
         addChild: function ( node, min, max ) {
@@ -209,7 +219,7 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
-                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
                                 if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined) {

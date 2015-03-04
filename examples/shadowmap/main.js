@@ -46,7 +46,7 @@
             '_spotCutoff': 25,
             '_spotBlend': 0.3,
             '_constantAttenuation': 0.0,
-            '_linearAttenuation': 0.005,
+            '_linearAttenuation': 0.001,
             '_quadraticAttenuation': 0.0,
             'exampleObj': this,
             'shadowStatic': false,
@@ -332,8 +332,8 @@
             // shaders has to have under max varying decl
             // max = this._maxVaryings -1
             // usual shader is already 4 vertexColor, FragNormal, FragEye, FragTexcoord.
-            // each shadow is 2 more.
-            var maxLights = ~~( ( this._maxVaryings - 1 ) - 4 ) / 2.0;
+            // each shadow is 1 more vec4 per shadow
+            var maxLights = ~~( ( this._maxVaryings - 1 ) - 4 );
 
             controller = gui.add( this._config, 'lightNum', 1, maxLights ).step( 1 );
             controller.onChange( this.updateShadow.bind( this ) );
@@ -539,7 +539,7 @@
         updateLightsEnable: function () {
             var l, numLights = ~~( this._config[ 'lightNum' ] );
 
-            while ( this._maxVaryings < ( numLights * 2 + 4 ) ) {
+            while ( this._maxVaryings < ( numLights + 4 ) ) {
                 numLights--;
             }
             this._config[ 'lightNum' ] = numLights;
@@ -550,7 +550,7 @@
 
             if ( this._lights.length !== numLights ) {
 
-                var lightScale = 1.0 / numLights;
+                var lightScale = 1.0 / ( numLights + 4 );
 
                 var group = this._viewer.getSceneData();
 
@@ -700,7 +700,9 @@
             if ( this._previousTech !== this._config[ 'shadow' ] ) {
                 // technique change.
 
-                this._groundNode.setNodeMask( ~this._castsShadowTraversalMask );
+
+                this._groundNode.setNodeMask( ~( this._castsShadowBoundsTraversalMask | this._castsShadowTraversalMask ) );
+
                 switch ( this._config[ 'shadow' ] ) {
                 case 'ESM':
 
@@ -923,7 +925,7 @@
                 request.then( function ( model ) {
 
 
-                    // adds 4 model
+                    // adds models
                     model._name = 'material-test_model_0';
                     modelNode.addChild( model );
 
@@ -938,14 +940,6 @@
                     modelSubNode.addChild( modelSubNodeTrans );
                     modelNode.addChild( modelSubNode );
 
-                    modelSubNode = new osg.Node();
-                    modelSubNode._name = 'material-test_model_2';
-                    modelSubNodeTrans = new osg.MatrixTransform();
-                    modelSubNodeTrans.setMatrix( osg.Matrix.makeScale( 0.7, 0.7, 0.7, [] ) );
-                    osg.Matrix.setTrans( modelSubNodeTrans.getMatrix(), 0.7, 0.7, 0.7 );
-                    modelSubNodeTrans.addChild( model );
-                    modelSubNode.addChild( modelSubNodeTrans );
-                    modelNode.addChild( modelSubNode );
 
                     modelSubNode = new osg.Node();
                     modelSubNodeTrans = new osg.MatrixTransform();
@@ -955,16 +949,25 @@
                     modelSubNodeTrans.addChild( model );
                     modelSubNode.addChild( modelSubNodeTrans );
                     modelNode.addChild( modelSubNode );
+                    if ( this._config[ 'complexScene' ] ) {
+                        modelSubNode = new osg.Node();
+                        modelSubNodeTrans = new osg.MatrixTransform();
+                        modelSubNode._name = 'material-test_model_3';
+                        modelSubNodeTrans.setMatrix( osg.Matrix.makeScale( 0.5, 0.5, 0.5, [] ) );
+                        osg.Matrix.setTrans( modelSubNodeTrans.getMatrix(), -dist, 0, -5 );
+                        modelSubNodeTrans.addChild( model );
+                        modelSubNode.addChild( modelSubNodeTrans );
+                        modelNode.addChild( modelSubNode );
 
-                    modelSubNode = new osg.Node();
-                    modelSubNodeTrans = new osg.MatrixTransform();
-                    modelSubNode._name = 'material-test_model_3';
-                    modelSubNodeTrans.setMatrix( osg.Matrix.makeScale( 0.5, 0.5, 0.5, [] ) );
-                    osg.Matrix.setTrans( modelSubNodeTrans.getMatrix(), -dist, 0, -5 );
-                    modelSubNodeTrans.addChild( model );
-                    modelSubNode.addChild( modelSubNodeTrans );
-                    modelNode.addChild( modelSubNode );
-
+                        modelSubNode = new osg.Node();
+                        modelSubNode._name = 'material-test_model_2';
+                        modelSubNodeTrans = new osg.MatrixTransform();
+                        modelSubNodeTrans.setMatrix( osg.Matrix.makeScale( 0.7, 0.7, 0.7, [] ) );
+                        osg.Matrix.setTrans( modelSubNodeTrans.getMatrix(), dist * 2, 0.7, 0.7 );
+                        modelSubNodeTrans.addChild( model );
+                        modelSubNode.addChild( modelSubNodeTrans );
+                        modelNode.addChild( modelSubNode );
+                    }
                 }.bind( this ) );
             }
             // make "pillars"
@@ -1034,7 +1037,7 @@
             var groundNode = new osg.Node();
             groundNode.setName( 'groundNode' );
 
-            var numPlanes = this._config[ 'basicScene' ] ? 1 : 5;
+            var numPlanes = !this._config[ 'complexScene' ] ? 1 : 5;
             var groundSize = 600 / numPlanes;
             var ground = osg.createTexturedQuadGeometry( 0, 0, 0, groundSize, 0, 0, 0, groundSize, 0 );
 
@@ -1045,6 +1048,7 @@
                 ground.getOrCreateStateSet().setTextureAttributeAndModes( 0, groundTex );
                 ground.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( osg.CullFace.DISABLE ), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE );
 
+                //ground.getOrCreateStateSet().setAttributeAndModes( new osg.BlendFunc( osg.BlendFunc.ONE, osg.BlendFunc.ONE_MINUS_SRC_ALPHA ) );
 
             } );
             var groundSubNode;
@@ -1087,7 +1091,8 @@
             var mapres = parseInt( this._config[ 'textureSize' ] );
             shadowSettings.setTextureSize( mapres );
 
-            shadowSettings.setCastsShadowTraversalMask( this._castsShadowTraversalMask );
+            shadowSettings.setCastsShadowDrawTraversalMask( this._castsShadowDrawTraversalMask );
+            shadowSettings.setCastsShadowBoundsTraversalMask( this._castsShadowBoundsTraversalMask );
 
             shadowSettings.setAlgorithm( this._config[ 'shadow' ] );
 
@@ -1175,7 +1180,9 @@
         createScene: function () {
             var group = new osg.Node();
 
-            this._castsShadowTraversalMask = 0x2;
+            this._castsShadowDrawTraversalMask = 0x2;
+            this._castsShadowBoundsTraversalMask = 0x2;
+            //this._castsShadowBoundsTraversalMask = 0x4;
 
             this._shadowScene = this.createSceneCasterReceiver();
 
@@ -1186,9 +1193,14 @@
             // casting shadow
             // receiving shadow
             // any combination possible.
-            //this._shadowScene.setNodeMask( this._castsShadowTraversalMask );
+            //this._shadowScene.setNodeMask( this._castsShadowDrawTraversalMask );
             //this._shadowScene.setNodeMask( this._receivesShadowTraversalMask );
-            this._groundNode.setNodeMask( ~this._castsShadowTraversalMask );
+
+
+            this._cubeNode.setNodeMask( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask );
+            this._modelNode.setNodeMask( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask );
+            this._groundNode.setNodeMask( ~( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask ) );
+            //this._groundNode.setNodeMask( ~this._castsShadowBoundsTraversalMask );
 
             /////////////////////////
             shadowedScene.addChild( this._shadowScene );
