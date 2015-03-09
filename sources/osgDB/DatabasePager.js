@@ -37,6 +37,7 @@ define( [
         this._loadedModel = undefined;
         this._group = undefined;
         this._url = [];
+        this._prefixurl = '';
         this._function = undefined;
         this._timeStamp = 0.0;
         this._groupExpired = false;
@@ -106,7 +107,7 @@ define( [
                     for ( var j = 0; j< request._promises.length; j++ )
                         request._promises[j].resolve();
                     }
-                    request._promises = undefined;  
+                    request._promises = undefined;
                     request._loadedModel = null;
                 }
             }
@@ -238,13 +239,14 @@ define( [
             subgraph.accept( new FindPagedLODsVisitor( this._activePagedLODList, frameNumber ) );
         },
 
-        requestNodeFile: function ( func, url, node, timestamp, priority ) {
+        requestNodeFile: function ( func, prefixurl, url, node, timestamp, priority ) {
             // We don't need to determine if the dbrequest is in the queue
             // That is already done in the PagedLOD, so we just create the request
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
             dbrequest._function = func;
             dbrequest._url = url;
+            dbrequest._prefixurl = prefixurl;
             dbrequest._timeStamp = timestamp;
             dbrequest._priority = priority;
             this._pendingRequests.push( dbrequest );
@@ -296,11 +298,11 @@ define( [
                 dbrequest._promises = [];
                 for (var i = 0, j = dbrequest._url.length; i < j; i++) {
                     if ( dbrequest._url[ i ] !== '' ) {
-                       promiseArray.push( this.loadNodeFromURL( dbrequest._url[ i ] ).promise );
+                       promiseArray.push( this.loadNodeFromURL( dbrequest._prefixurl + dbrequest._url[ i ] ).promise );
                        dbrequest._promises.push(this.loadNodeFromURL( dbrequest._url[ i ] ));
                     }
                 }
-                Q.all( promiseArray ).then( function( ) {
+                Q.any( promiseArray ).then( function( ) {
                     // All the results from Q.all are on the argument as an array
                     // Now insert children in the right order
                     var g = new Node();
@@ -316,6 +318,16 @@ define( [
                 } );
             }
         },
+
+        // resolvePromises: function( promiseArray, group ) {
+        //     Q.any( promiseArray ).then( function( first ) { 
+        //         g.addChild( first );
+        //         that._pendingNodes.push( dbrequest );
+        //     } );
+        //     that._downloadingRequestsNumber--;
+        //     that._loading = false;
+        //     dbrequest._promises = undefined;
+        // }
 
         loadNodeFromFunction: function ( func, plod ) {
             // Need to call with pagedLOD as parent, to be able to have multiresolution structures.

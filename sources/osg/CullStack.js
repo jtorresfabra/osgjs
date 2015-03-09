@@ -158,11 +158,11 @@ define( [
         pushCullingSet: function () {
             var cs = this._getReservedCullingSet();
             if ( this._enableFrustumCulling ) {
-                Matrix.getFrustumPlanes( this.getCurrentProjectionMatrix(), this.getCurrentModelViewMatrix(), cs.getFrustum().getPlanes(), false );
+                Matrix.getFrustumPlanes( this.getCurrentProjectionMatrix(), this.getCurrentModelViewMatrix(), cs.getFrustum().getPlanes(), true );
                 // TODO: no far no near.
                 // should check if we have them
                 // should add at least a near 0 clip if not
-                cs.getFrustum().setupMask( 4 );
+                cs.getFrustum().setupMask( 6 );
             }
 
             this._cullingSetStack.push( cs );

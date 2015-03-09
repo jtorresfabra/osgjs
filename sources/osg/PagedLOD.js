@@ -219,7 +219,7 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
-                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
                                 if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined) {
