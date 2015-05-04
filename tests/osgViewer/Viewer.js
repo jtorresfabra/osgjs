@@ -1,15 +1,17 @@
 define( [
+    'qunit',
     'tests/mockup/mockup',
     'osgViewer/Viewer',
-    'osg/Shape',
-    'osg/Notify'
-], function ( mockup, Viewer, Shape, Notify ) {
+    'osg/Shape'
+], function ( QUnit, mockup, Viewer, Shape ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osgViewer' );
+        QUnit.module( 'osgViewer' );
 
-        test( 'Viewer', function () {
+        QUnit.test( 'Viewer', function () {
             ( function () {
                 var canvas = mockup.createCanvas();
                 var viewer = new Viewer( canvas );
@@ -34,13 +36,13 @@ define( [
                 viewer.setupManipulator();
 
                 viewer.setSceneData( createScene() );
-                viewer.getCamera().getRenderer().draw = function() {}; // do nothing
+                viewer.getCamera().getRenderer().draw = function () {}; // do nothing
                 viewer.frame();
 
                 var cullvisitor = viewer.getCamera().getRenderer().getCullVisitor();
                 // with auto compute near far
-                equal( cullvisitor._computedFar , 31.30036755335051, 'check far');
-                equal( cullvisitor._computedNear , 18.699632446649503, 'check near');
+                equal( cullvisitor._computedFar, 31.300367553350508, 'check far' );
+                equal( cullvisitor._computedNear, 18.6996324466495, 'check near' );
 
                 cullvisitor.reset();
                 equal( cullvisitor._computedNear, Number.POSITIVE_INFINITY, 'Check near after reset' );

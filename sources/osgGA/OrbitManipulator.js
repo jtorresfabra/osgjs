@@ -1,6 +1,4 @@
 define( [
-    'osg/BoundingSphere',
-    'osg/ComputeBoundsVisitor',
     'osg/Utils',
     'osg/Vec3',
     'osg/Matrix',
@@ -12,7 +10,7 @@ define( [
     'osgGA/OrbitManipulatorDeviceOrientationController',
     'osgGA/OrbitManipulatorOculusController',
 
-], function ( BoundingSphere, ComputeBoundsVisitor, MACROUTILS, Vec3, Matrix, Manipulator, OrbitManipulatorLeapMotionController, OrbitManipulatorMouseKeyboardController, OrbitManipulatorHammerController, OrbitManipulatorGamePadController, OrbitManipulatorDeviceOrientationController, OrbitManipulatorOculusController ) {
+], function ( MACROUTILS, Vec3, Matrix, Manipulator, OrbitManipulatorLeapMotionController, OrbitManipulatorMouseKeyboardController, OrbitManipulatorHammerController, OrbitManipulatorGamePadController, OrbitManipulatorDeviceOrientationController, OrbitManipulatorOculusController ) {
 
     'use strict';
 
@@ -23,6 +21,7 @@ define( [
     var OrbitManipulator = function () {
         Manipulator.call( this );
         this._homePosition = [ 0.0, 0.0, 0.0 ];
+        this._frustum = {};
         this.init();
     };
 
@@ -111,8 +110,8 @@ define( [
             this._upz = [ 0.0, 0.0, 1.0 ];
             Vec3.init( this._target );
 
-            var rot1 = Matrix.makeRotate( Math.PI, 0.0, 0.0, 1.0, Matrix.create() );
-            var rot2 = Matrix.makeRotate( -Math.PI / 10.0, 1.0, 0.0, 0.0, Matrix.create() );
+            var rot1 = Matrix.makeRotate( -Math.PI, 0.0, 0.0, 1.0, Matrix.create() );
+            var rot2 = Matrix.makeRotate( Math.PI / 10.0, 1.0, 0.0, 0.0, Matrix.create() );
             this._rotation = Matrix.create();
             Matrix.mult( rot1, rot2, this._rotation );
             this._time = 0.0;
@@ -149,9 +148,6 @@ define( [
         },
         reset: function () {
             this.init();
-        },
-        setNode: function ( node ) {
-            this._node = node;
         },
         setTarget: function ( target ) {
             Vec3.copy( target, this._target );
@@ -201,25 +197,10 @@ define( [
             };
         } )(),
         computeHomePosition: function ( useBoundingBox ) {
-
-            if ( this._node !== undefined ) {
-
-                var bs;
-                if ( useBoundingBox || this._flags & Manipulator.COMPUTE_HOME_USING_BBOX ) {
-                    bs = new BoundingSphere();
-                    var visitor = new ComputeBoundsVisitor();
-                    this._node.accept( visitor );
-                    var bb = visitor.getBoundingBox();
-
-                    if ( bb.valid() )
-                        bs.expandByBoundingBox( bb );
-                } else {
-                    bs = this._node.getBound();
-                }
-
-                this.setDistance( bs.radius() * 1.5 );
-                this.setTarget( bs.center() );
-            }
+            var bs = this.getHomeBound( useBoundingBox );
+            if ( !bs ) return;
+            this.setDistance( this.getHomeDistance( bs ) );
+            this.setTarget( bs.center() );
         },
 
         getHomePosition: function () {
@@ -254,8 +235,15 @@ define( [
             var x = [ 0.0, 0.0, 0.0 ];
             var y = [ 0.0, 0.0, 0.0 ];
             return function ( dx, dy ) {
-                dy *= this._distance;
-                dx *= this._distance;
+                var proj = this._camera.getProjectionMatrix();
+                // modulate panning speed with verticalFov value
+                // if it's an orthographic we don't change the panning speed
+                // TODO : manipulators in osgjs don't support well true orthographic camera anyway because they
+                // manage the view matrix (and you need to edit the projection matrix to 'zoom' for true ortho camera) 
+                var vFov = proj[ 15 ] === 1 ? 1.0 : 2.00 / proj[ 5 ];
+                dy *= this._distance * vFov;
+                dx *= this._distance * vFov;
+
                 Matrix.inverse( this._rotation, inv );
                 x[ 0 ] = Matrix.get( inv, 0, 0 );
                 x[ 1 ] = Matrix.get( inv, 0, 1 );
@@ -281,10 +269,10 @@ define( [
             var tmp = [ 0.0, 0.0, 0.0 ];
             var tmpDist = [ 0.0, 0.0, 0.0 ];
             return function ( dx, dy ) {
-                Matrix.makeRotate( dx / 10.0, 0.0, 0.0, 1.0, of );
+                Matrix.makeRotate( -dx / 10.0, 0.0, 0.0, 1.0, of );
                 Matrix.mult( this._rotation, of, r );
 
-                Matrix.makeRotate( dy / 10.0, 1.0, 0.0, 0.0, of );
+                Matrix.makeRotate( -dy / 10.0, 1.0, 0.0, 0.0, of );
                 Matrix.mult( of, r, r2 );
 
                 // test that the eye is not too up and not too down to not kill
@@ -355,7 +343,6 @@ define( [
 
         update: ( function () {
             var eye = [ 0.0, 0.0, 0.0 ];
-            var tmpDist = [ 0.0, 0.0, 0.0 ];
             return function ( nv ) {
                 var t = nv.getFrameStamp().getSimulationTime();
                 if ( this._lastUpdate === undefined ) {
@@ -392,16 +379,12 @@ define( [
                 // Matrix.preMult( this._rotBase, this._rotation );
                 // Matrix.inverse( this._rotBase, this._inverseMatrix );
 
-                tmpDist[ 1 ] = distance;
-                Matrix.transformVec3( this._inverseMatrix, tmpDist, eye );
+                Vec3.set( 0.0, distance, 0.0, eye );
+                Matrix.transformVec3( this._inverseMatrix, eye, eye );
 
                 Matrix.makeLookAt( Vec3.add( target, eye, eye ), target, this._upz, this._inverseMatrix );
             };
-        } )(),
-
-        getInverseMatrix: function () {
-            return this._inverseMatrix;
-        }
+        } )()
     } );
 
     ( function ( module ) {

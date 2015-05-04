@@ -6,7 +6,7 @@ define( [
     'osg/Timer',
     'osg/UpdateVisitor',
     'osg/Utils',
-
+    'osg/Texture',
     'osgGA/OrbitManipulator',
 
     'osgViewer/CanvasStats',
@@ -15,7 +15,7 @@ define( [
     'osgViewer/webgl-utils',
     'osgViewer/webgl-debug'
 
-], function ( Notify, Matrix, Options, Stats, Timer, UpdateVisitor, MACROUTILS, OrbitManipulator, CanvasStats, EventProxy, View, WebGLUtils, WebGLDebugUtils ) {
+], function ( Notify, Matrix, Options, Stats, Timer, UpdateVisitor, MACROUTILS, Texture, OrbitManipulator, CanvasStats, EventProxy, View, WebGLUtils, WebGLDebugUtils ) {
 
     'use strict';
 
@@ -344,7 +344,7 @@ define( [
             canvasStats.addLayer( '#f0f000', 256,
                 function ( /*t*/) {
                     var fn = this.getFrameStamp().getFrameNumber() - 1;
-                    var stats = this.getCamera().getRenderer().getState().getTextureManager().getStats();
+                    var stats = Texture.getTextureManager( this.getGraphicContext() ).getStats();
                     var value = stats.getAttribute( fn, 'Texture used' );
                     return value / ( 1024 * 1024 );
                 }.bind( this ),
@@ -355,7 +355,7 @@ define( [
             canvasStats.addLayer( '#f00f00', 256,
                 function ( /*t*/) {
                     var fn = this.getFrameStamp().getFrameNumber() - 1;
-                    var stats = this.getCamera().getRenderer().getState().getTextureManager().getStats();
+                    var stats = Texture.getTextureManager( this.getGraphicContext() ).getStats();
                     var value = stats.getAttribute( fn, 'Texture total' );
                     return value / ( 1024 * 1024 );
                 }.bind( this ),
@@ -408,21 +408,10 @@ define( [
         updateTraversal: function () {
 
             var startTraversal = Timer.instance().tick();
-
-            // setup framestamp
-            this._updateVisitor.setFrameStamp( this.getFrameStamp() );
-
-
-            // Update Manipulator/Event
-            if ( this.getManipulator() ) {
-                this.getManipulator().update( this._updateVisitor );
-                Matrix.copy( this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix() );
-            }
-
             // update the scene
             this.getScene().updateSceneGraph( this._updateVisitor );
             // Remove ExpiredSubgraphs from DatabasePager
-            this.getDatabasePager().releaseGLExpiredSubgraphs( this.getGraphicContext(), 0.005 );
+            this.getDatabasePager().releaseGLExpiredSubgraphs( 0.005 );
             // In OSG this.is deferred until the draw traversal, to handle multiple contexts
             this.flushDeletedGLObjects( 0.005 );
             var deltaS = Timer.instance().deltaS( startTraversal, Timer.instance().tick() );
@@ -474,9 +463,13 @@ define( [
             this.getViewerStats().setAttribute( frameNumber, 'Frame duration', Timer.instance().deltaS( this._startFrameTick, Timer.instance().tick() ) );
 
             if ( this._canvasStats ) { // update ui stats
-                this.getCamera().getRenderer().getState().getTextureManager().updateStats( frameNumber );
+                Texture.getTextureManager( this.getGraphicContext() ).updateStats( frameNumber );
                 this._canvasStats.update();
             }
+        },
+
+        checkNeedToDoFrame: function () {
+            return this._requestContinousUpdate || this._requestRedraw;
         },
 
         frame: function () {
@@ -486,13 +479,24 @@ define( [
             this.advance();
 
             // update viewport if a resize occured
-            this.updateViewport();
+            var canvasSizeChanged = this.updateViewport();
 
             // update inputs devices
             this.updateEventProxy( this._eventProxy, this.getFrameStamp() );
 
-            this.updateTraversal();
-            this.renderingTraversal();
+            // setup framestamp
+            this._updateVisitor.setFrameStamp( this.getFrameStamp() );
+            // Update Manipulator/Event
+            if ( this.getManipulator() ) {
+                this.getManipulator().update( this._updateVisitor );
+                Matrix.copy( this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix() );
+            }
+
+            if ( this.checkNeedToDoFrame() || canvasSizeChanged ) {
+                this._requestRedraw = false;
+                this.updateTraversal();
+                this.renderingTraversal();
+            }
 
             this.endFrame();
         },
@@ -527,6 +531,7 @@ define( [
                 manipulator.view = this;
             }
 
+            manipulator.setCamera( this.getCamera() );
             this.setManipulator( manipulator );
         },
 
@@ -537,7 +542,9 @@ define( [
             var gl = this.getGraphicContext();
             var canvas = gl.canvas;
 
-            this.computeCanvasSize( canvas );
+            var hasChanged = this.computeCanvasSize( canvas );
+            if ( !hasChanged )
+                return false;
 
             var camera = this.getCamera();
             var vp = camera.getViewport();
@@ -553,6 +560,8 @@ define( [
             if ( aspectRatioChange !== 1.0 ) {
                 Matrix.preMult( camera.getProjectionMatrix(), Matrix.makeScale( 1.0 / aspectRatioChange, 1.0, 1.0, Matrix.create() ) );
             }
+
+            return true;
         },
 
         // intialize all input devices
@@ -562,6 +571,8 @@ define( [
 
             var lists = EventProxy;
             var argumentEventBackend = args.EventBackend;
+
+
             // loop on each devices and try to initialize it
             var keys = window.Object.keys( lists );
             for ( var i = 0, l = keys.length; i < l; i++ ) {
@@ -575,9 +586,35 @@ define( [
                     argDevice = argumentEventBackend[ device ];
                 }
 
+                // extend argDevice with regular options eg:
+                // var options = {
+                //     EventBackend: {
+                //         Hammer: {
+                //             drag_max_touches: 4,
+                //             transform_min_scale: 0.08,
+                //             transform_min_rotation: 180,
+                //             transform_always_block: true
+                //         }
+                //     },
+                //     zoomscroll: false
+                // };
+
+                // to options merged:
+                // var options = {
+                //     drag_max_touches: 4,
+                //     transform_min_scale: 0.08,
+                //     transform_min_rotation: 180,
+                //     transform_always_block: true,
+                //     zoomscroll: false
+                // };
+                //
+                var options = new Options();
+                options.extend( argDevice ).extend( argsObject );
+                delete options.EventBackend;
+
                 if ( initialize ) {
                     var inputDevice = new lists[ device ]( this );
-                    inputDevice.init( argDevice );
+                    inputDevice.init( options );
                     deviceEnabled[ device ] = inputDevice;
                 }
             }

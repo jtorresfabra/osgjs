@@ -120,7 +120,7 @@ define( [
             timed = this._perRangeDataList[ i ].timeStamp + this._expiryTime;
             framed = this._perRangeDataList[ i ].frameNumber + this._expiryFrame;
             if ( timed < expiryTime && framed < expiryFrame && ( this._perRangeDataList[ i ].filename.length > 0 ||
-                this._perRangeDataList[ i ].function !== undefined ) ) {
+                    this._perRangeDataList[ i ].function !== undefined ) ) {
                 removedChildren.push( this.children[ i ] );
                 this.removeChild( this.children[ i ] );
                 this._perRangeDataList[ i ].loaded = false;
@@ -180,6 +180,8 @@ define( [
 
                     var needToLoadChild = false;
                     var lastChildTraversed = -1;
+                    //this.children[ 0 ].accept( visitor );
+
                     for ( var j = 0; j < this._range.length; ++j ) {
                         if ( this._range[ j ][ 0 ] <= requiredRange && requiredRange < this._range[ j ][ 1 ] ) {
                             if ( j < this.children.length ) {
@@ -188,10 +190,13 @@ define( [
                                     this._perRangeDataList[ j ].timeStamp = visitor.getFrameStamp().getSimulationTime();
                                     this._perRangeDataList[ j ].frameNumber = visitor.getFrameStamp().getFrameNumber();
                                 }
-
                                 this.children[ j ].accept( visitor );
+                                if ( this._perRangeDataList[ j ].dbrequest !== undefined &&  this._perRangeDataList[ j ].dbrequest._finished === false ) {
+                                   this.children[ 0 ].accept( visitor );
+                                }
                                 lastChildTraversed = j;
                             } else {
+
                                 needToLoadChild = true;
                             }
                         }
@@ -204,13 +209,12 @@ define( [
                                 this._perRangeDataList[ numChildren - 1 ].timeStamp = visitor.getFrameStamp().getSimulationTime();
                                 this._perRangeDataList[ numChildren - 1 ].frameNumber = visitor.getFrameStamp().getFrameNumber();
                             }
-
                             this.children[ numChildren - 1 ].accept( visitor );
                         }
                         // now request the loading of the next unloaded child.
                         if ( numChildren < this._perRangeDataList.length ) {
                             // compute priority from where abouts in the required range the distance falls.
-                            var priority = ( this._range[ numChildren ][ 0 ] - requiredRange ) / ( this._range[ numChildren ][ 1 ]- this._range[ numChildren ][ 0 ] );
+                            var priority = ( this._range[ numChildren ][ 0 ] - requiredRange ) / ( this._range[ numChildren ][ 1 ] - this._range[ numChildren ][ 0 ] );
                             if ( this._rangeMode === Lod.PIXEL_SIZE_ON_SCREEN ) {
                                 priority = -priority;
                             }
@@ -222,9 +226,12 @@ define( [
                                 this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._prefixURL, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
-                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined) {
+                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined && this._perRangeDataList[ numChildren ].dbrequest._finished === false) {
                                     this._perRangeDataList[ numChildren ].dbrequest._timeStamp = visitor.getFrameStamp().getSimulationTime();
                                     this._perRangeDataList[ numChildren ].dbrequest._priority = priority;
+                                } else {
+                                    // The DB request is undefined, so the DBPager was not accepting requests, we need to ask for the child again.
+                                    this._perRangeDataList[ numChildren ].loaded = false;
                                 }
                             }
                         }

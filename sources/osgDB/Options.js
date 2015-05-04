@@ -1,10 +1,10 @@
-define( [
-], function( ) {
+define( [], function () {
 
     var defaultOptions = {
 
         // prefix to built url to load resource
         prefixURL: '',
+
         plodPrefixURL: '',
         plodSuffixURL: '',
 
@@ -30,4 +30,4 @@ define( [
 
     return defaultOptions;
 
-});
+} );

@@ -1,15 +1,16 @@
 define( [
+    'qunit',
     'osg/UpdateVisitor',
     'osg/Node'
-], function ( UpdateVisitor, Node ) {
+], function ( QUnit, UpdateVisitor, Node ) {
 
     'use strict';
 
     return function () {
 
-        module( 'osg' );
+        QUnit.module( 'osg' );
 
-        test( 'UpdateVisitor', function () {
+        QUnit.test( 'UpdateVisitor', function () {
 
             var uv = new UpdateVisitor();
 
@@ -21,9 +22,6 @@ define( [
             c.setName( 'c' );
             root.addChild( b );
             b.addChild( c );
-
-
-
 
             var callRoot = 0;
             var callb = 0;

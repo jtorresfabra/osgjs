@@ -1,4 +1,5 @@
 define( [
+    'qunit',
     'osg/State',
     'osg/StateSet',
     'osg/Material',
@@ -6,13 +7,15 @@ define( [
     'osg/Texture',
     'osgShader/ShaderGeneratorProxy',
     'tests/mockup/mockup'
-], function ( State, StateSet, Material, StateAttribute, Texture, ShaderGeneratorProxy, mockup ) {
+], function ( QUnit, State, StateSet, Material, StateAttribute, Texture, ShaderGeneratorProxy, mockup ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osg' );
+        QUnit.module( 'osg' );
 
-        test( 'State', function () {
+        QUnit.test( 'State', function () {
 
             ( function () {
                 var state = new State( new ShaderGeneratorProxy() );
@@ -33,14 +36,18 @@ define( [
         } );
 
 
-        test( 'State applyStateSet', function () {
+        QUnit.test( 'State applyStateSet', function () {
 
             ( function () {
                 var state = new State( new ShaderGeneratorProxy() );
                 var fakeRenderer = mockup.createFakeRenderer();
                 var id = 0;
-                fakeRenderer.createProgram = function() { return id++; };
-                fakeRenderer.getProgramParameter = function() { return true; };
+                fakeRenderer.createProgram = function () {
+                    return id++;
+                };
+                fakeRenderer.getProgramParameter = function () {
+                    return true;
+                };
                 state.setGraphicContext( fakeRenderer );
 
                 var stateSet0 = new StateSet();
@@ -57,7 +64,7 @@ define( [
                 state.applyStateSet( stateSet2 );
 
                 equal( state.getStateSetStackSize(), 1, 'check stateSet stack length' );
-                notEqual( state.getLastProgramApplied(), undefined, 'check last program applied' );
+                QUnit.notEqual( state.getLastProgramApplied(), undefined, 'check last program applied' );
                 equal( state.attributeMap.Program.values().length, 0, 'check program stack length' );
             } )();
         } );

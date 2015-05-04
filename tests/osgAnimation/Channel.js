@@ -1,15 +1,18 @@
 define( [
+    'qunit',
     'tests/mockup/mockup',
     'osgAnimation/Keyframe',
     'osgAnimation/Vec3LerpChannel',
     'osgAnimation/FloatLerpChannel'
-], function ( mockup, Keyframe, Vec3LerpChannel, FloatLerpChannel ) {
+], function ( QUnit, mockup, Keyframe, Vec3LerpChannel, FloatLerpChannel ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osgAnimation' );
+        QUnit.module( 'osgAnimation' );
 
-        test( 'Channel', function () {
+        QUnit.test( 'Channel', function () {
             var keys = [];
             keys.push( Keyframe.createVec3Keyframe( 0, [ 1, 1, 1 ] ) );
             keys.push( Keyframe.createVec3Keyframe( 1, [ 0, 0, 0 ] ) );
@@ -17,7 +20,7 @@ define( [
 
             var channel = new Vec3LerpChannel( keys );
             channel.update( 1.0 );
-            ok( mockup.check_near( channel.getTarget().getValue(), [ 0.0, 0.0, 0.0 ] ), 'Check vec3 channel update' );
+            ok( mockup.checkNear( channel.getTarget().getValue(), [ 0.0, 0.0, 0.0 ] ), 'Check vec3 channel update' );
 
             keys.length = 0;
             keys.push( Keyframe.createFloatKeyframe( 0, 1 ) );
@@ -26,7 +29,7 @@ define( [
 
             channel = new FloatLerpChannel( keys );
             channel.update( 1.0 );
-            ok( mockup.check_near( channel.getTarget().getValue(), 0.0 ), 'Check float channel update' );
+            ok( mockup.checkNear( channel.getTarget().getValue(), 0.0 ), 'Check float channel update' );
         } );
     };
 } );

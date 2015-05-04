@@ -1,15 +1,19 @@
 define( [
     'osg/BlendFunc',
+    'osg/BufferArray',
     'osg/Camera',
     'osg/CullFace',
     'osg/Depth',
     'osg/FrameStamp',
+    'osg/FrameBufferObject',
     'osg/Light',
     'osg/Material',
     'osg/Matrix',
     'osg/Node',
     'osg/Options',
     'osg/Texture',
+    'osg/Program',
+    'osg/Shader',
     'osg/Viewport',
     'osg/WebGLCaps',
     'osgUtil/IntersectionVisitor',
@@ -18,16 +22,20 @@ define( [
     'osgViewer/Scene'
 ], function (
     BlendFunc,
+    BufferArray,
     Camera,
     CullFace,
     Depth,
     FrameStamp,
+    FrameBufferObject,
     Light,
     Material,
     Matrix,
     Node,
     Options,
     Texture,
+    Program,
+    Shader,
     Viewport,
     WebGLCaps,
     IntersectionVisitor,
@@ -52,6 +60,9 @@ define( [
         this._canvasWidth = 0;
         this._canvasHeight = 0;
 
+        this._requestContinousUpdate = true;
+        this._requestRedraw = true;
+
         this.setLightingMode( View.LightingMode.HEADLIGHT );
         // assign a renderer to the camera
         var renderer = this.createRenderer( this.getCamera() );
@@ -68,7 +79,12 @@ define( [
     };
 
     View.prototype = {
-
+        requestRedraw: function () {
+            this._requestRedraw = true;
+        },
+        requestContinuousUpdate: function ( bool ) {
+            this._requestContinousUpdate = bool;
+        },
         createRenderer: function ( camera ) {
             var render = new Renderer( camera );
             //camera->setStats(new osg::Stats("Camera"));
@@ -107,16 +123,19 @@ define( [
                 var widthPixel = Math.floor( clientWidth * devicePixelRatio );
                 var heightPixel = Math.floor( clientHeight * devicePixelRatio );
 
+                var hasChanged = false;
                 if ( this._canvasWidth !== widthPixel ) {
                     canvas.width = widthPixel;
                     this._canvasWidth = widthPixel;
+                    hasChanged = true;
                 }
 
                 if ( this._canvasHeight !== heightPixel ) {
                     canvas.height = heightPixel;
                     this._canvasHeight = heightPixel;
+                    hasChanged = true;
                 }
-
+                return hasChanged;
             };
         } )(),
 
@@ -125,10 +144,14 @@ define( [
 
             var devicePixelRatio = window.devicePixelRatio || 1;
             var overrideDevicePixelRatio = options.getNumber( 'overrideDevicePixelRatio' );
+            var maxDevicePixelRatio = options.getNumber( 'maxDevicePixelRatio' ) || -1;
 
             // override the pixel ratio, used to save pixel on mobile
-            if ( typeof overrideDevicePixelRatio === 'number' )
+            if ( typeof overrideDevicePixelRatio === 'number' ) {
                 devicePixelRatio = overrideDevicePixelRatio;
+            } else if ( maxDevicePixelRatio !== -1 ) {
+                devicePixelRatio = maxDevicePixelRatio;
+            }
             this._devicePixelRatio = devicePixelRatio;
 
             this.computeCanvasSize( canvas );
@@ -251,10 +274,15 @@ define( [
             }
         },
 
-        // CP: I guess it should move into Scene in something like an ImagePager things ?
+        // In OSG this call is done in SceneView
         flushDeletedGLObjects: function ( /*currentTime,*/ availableTime ) {
             // Flush all deleted OpenGL objects within the specified availableTime
-            this.getCamera().getRenderer().getState().getTextureManager().flushDeletedTextureObjects( this.getGraphicContext(), availableTime );
+            var gl = this.getGraphicContext();
+            availableTime = BufferArray.flushDeletedGLBufferArrays( gl, availableTime );
+            availableTime = Texture.getTextureManager( gl ).flushDeletedTextureObjects( gl, availableTime );
+            availableTime = Program.flushDeletedGLPrograms( gl, availableTime );
+            availableTime = Shader.flushDeletedGLShaders( gl, availableTime );
+            availableTime = FrameBufferObject.flushDeletedGLFrameBuffers( gl, availableTime );
         }
 
     };

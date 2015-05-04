@@ -6,10 +6,10 @@ define( [
     'osg/Program',
     'osg/StateAttribute',
     'osg/Stack',
-    'osg/TextureManager',
+    'osg/Texture',
     'osg/Uniform',
     'osg/Utils'
-], function ( Map, Matrix, Notify, Object, Program, StateAttribute, Stack, TextureManager, Uniform, MACROUTILS ) {
+], function ( Map, Matrix, Notify, Object, Program, StateAttribute, Stack, Texture, Uniform, MACROUTILS ) {
 
     'use strict';
 
@@ -54,11 +54,6 @@ define( [
 
         this._frameStamp = undefined;
 
-        // texture manager is referenced here because it's associated with gl object
-        // of the gl context intialized with State
-        this._textureManager = new TextureManager();
-
-
         // we dont use Map because in this use case with a few entries
         // {} is faster
         this._programCommonUniformsCache = {};
@@ -80,10 +75,6 @@ define( [
 
         getCacheUniformsApplyRenderLeaf: function () {
             return this._programCommonUniformsCache;
-        },
-
-        getTextureManager: function () {
-            return this._textureManager;
         },
 
         setGraphicContext: function ( graphicContext ) {
@@ -278,6 +269,14 @@ define( [
             this.popStateSet();
         },
 
+        getStateSetStackHash: function () {
+            var values = this.stateSets.values();
+            var sum = 0;
+            for ( var i = 0, l = values.length; i < l; i++ )
+                sum += values[ i ].getInstanceID();
+            return sum;
+        },
+
         popAllStateSets: function () {
             while ( this.stateSets.values().length ) {
                 this.popStateSet();
@@ -285,6 +284,8 @@ define( [
         },
 
         popStateSet: function () {
+
+            if ( this.stateSets.empty() ) return;
 
             var stateset = this.stateSets.pop();
 
@@ -492,21 +493,26 @@ define( [
         },
 
 
+        // this funtion must called only if stack has changed
+        // check applyTextureAttributeMapList
         _applyTextureAttributeStack: function ( gl, textureUnit, attributeStack ) {
+
             var attribute;
             if ( attributeStack.values().length === 0 ) {
                 attribute = attributeStack.globalDefault;
             } else {
                 attribute = attributeStack.back().object;
             }
-            if ( attributeStack.asChanged ) {
 
+            // if the the stack has changed but the last applied attribute is the same
+            // then we dont need to apply it again
+            if ( attributeStack.lastApplied !== attribute ) {
                 gl.activeTexture( gl.TEXTURE0 + textureUnit );
                 attribute.apply( this, textureUnit );
                 attributeStack.lastApplied = attribute;
-                attributeStack.asChanged = false;
-
             }
+
+            attributeStack.asChanged = false;
         },
 
         applyTextureAttributeMapList: function ( textureAttributesMapList ) {
@@ -526,9 +532,9 @@ define( [
                     var key = textureAttributeMapKeys[ i ];
 
                     var attributeStack = textureAttributeMap[ key ];
-                    if ( !attributeStack ) {
-                        continue;
-                    }
+
+                    // skip if not stack or not changed in stack
+                    if ( !attributeStack || !attributeStack.asChanged ) continue;
 
                     this._applyTextureAttributeStack( gl, textureUnit, attributeStack );
                     // var attribute;
@@ -649,7 +655,7 @@ define( [
             var program = this.attributeMap.Program.lastApplied;
 
             if ( !program._uniformsCache.ArrayColorEnabled ||
-                 !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
+                !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
 
 
             var gl = this.getGraphicContext();
@@ -662,12 +668,12 @@ define( [
 
 
             // check per program
-            var previousColorAttrib = this._previousColorAttribPair[program.getInstanceID()];
+            var previousColorAttrib = this._previousColorAttribPair[ program.getInstanceID() ];
 
             // no change with the same program -> exit
             if ( previousColorAttrib === hasColorAttrib ) return;
 
-            this._previousColorAttribPair[program.getInstanceID()] = hasColorAttrib;
+            this._previousColorAttribPair[ program.getInstanceID() ] = hasColorAttrib;
 
             // update uniform
             var uniform = this.uniforms.ArrayColorEnabled.globalDefault;
