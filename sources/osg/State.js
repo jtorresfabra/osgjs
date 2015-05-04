@@ -95,16 +95,16 @@ define( [
             if ( stateset.attributeMap ) {
                 this.pushAttributeMap( this.attributeMap, stateset.attributeMap );
             }
+
             if ( stateset.textureAttributeMapList ) {
                 var list = stateset.textureAttributeMapList;
                 for ( var textureUnit = 0, l = list.length; textureUnit < l; textureUnit++ ) {
                     if ( !list[ textureUnit ] ) {
                         continue;
                     }
-                    if ( !this.textureAttributeMapList[ textureUnit ] ) {
-                        this.textureAttributeMapList[ textureUnit ] = new Map();
-                    }
-                    this.pushAttributeMap( this.textureAttributeMapList[ textureUnit ], list[ textureUnit ] );
+
+                    var textureUnitAttributeMap = this.getOrCreateTextureAttributeMap( textureUnit );
+                    this.pushAttributeMap( textureUnitAttributeMap, list[ textureUnit ] );
                 }
             }
 
@@ -350,11 +350,12 @@ define( [
             gl.activeTexture( gl.TEXTURE0 + unit );
             var key = attribute.getTypeMember();
 
+
             if ( !this.textureAttributeMapList[ unit ] ) {
                 this.textureAttributeMapList[ unit ] = new Map();
             }
 
-            var textureUnitAttributeMap = this.textureAttributeMapList[ unit ];
+            var textureUnitAttributeMap = this.getOrCreateTextureAttributeMap( unit );
             var attributeStack = textureUnitAttributeMap[ key ];
 
             if ( !attributeStack ) {
@@ -554,20 +555,53 @@ define( [
                 }
             }
         },
-        setGlobalDefaultValue: function ( attribute ) {
 
-            var key = attribute.getTypeMember();
+        setGlobalDefaultValue: function ( attribute ) {
+            Notify.log( 'setGlobalDefaultValue is deprecated, use instead setGlobalDefaultAttribute' );
+            this.setGlobalDefaultAttribute( attribute );
+        },
+
+        setGlobalDefaultAttribute: function ( attribute ) {
+            var typeMember = attribute.getTypeMember();
             var attributeMap = this.attributeMap;
 
-            if ( attributeMap[ key ] ) {
-                attributeMap[ key ].globalDefault = attribute;
-
-            } else {
-                attributeMap[ key ] = new Stack();
-                attributeMap[ key ].globalDefault = attribute;
-
-                this.attributeMap.dirty();
+            if ( attributeMap[ typeMember ] === undefined ) {
+                attributeMap[ typeMember ] = new Stack();
+                attributeMap.dirty();
             }
+
+            attributeMap[ typeMember ].globalDefault = attribute;
+        },
+
+        getGlobalDefaultAttribute: function ( typeMember ) {
+            var attributeMap = this.attributeMap;
+            if ( attributeMap[ typeMember ] === undefined ) return undefined;
+
+            return attributeMap[ typeMember ].globalDefault;
+        },
+
+        setGlobalDefaultTextureAttribute: function ( unit, attribute ) {
+            var attributeMap = this.getOrCreateTextureAttributeMap( unit );
+
+            var typeMember = attribute.getTypeMember();
+            if ( attributeMap[ typeMember ] === undefined ) {
+                attributeMap[ typeMember ] = new Stack();
+                attributeMap.dirty();
+            }
+
+            var as = attributeMap[ typeMember ];
+            as.globalDefault = attribute;
+        },
+
+        getGlobalDefaultTextureAttribute: function ( unit, typeMember ) {
+            var attributeMap = this.getOrCreateTextureAttributeMap( unit );
+            var as = attributeMap[ typeMember ];
+            return as.globalDefault;
+        },
+
+        getOrCreateTextureAttributeMap: function ( unit ) {
+            if ( !this.textureAttributeMapList[ unit ] ) this.textureAttributeMapList[ unit ] = new Map();
+            return this.textureAttributeMapList[ unit ];
         },
 
         pushAttributeMap: function ( attributeMap, stateSetAttributeMap ) {
