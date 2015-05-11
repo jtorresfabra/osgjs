@@ -162,7 +162,7 @@ define( [
                 // TODO: no far no near.
                 // should check if we have them
                 // should add at least a near 0 clip if not
-                cs.getFrustum().setupMask( 6 );
+                cs.getFrustum().setupMask( 4 );
             }
 
             this._cullingSetStack.push( cs );

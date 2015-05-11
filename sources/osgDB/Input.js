@@ -1,6 +1,5 @@
 define( [
     'q',
-    'require',
     'osg/Utils',
     'osgNameSpace',
     'osgDB/ReaderParser',
@@ -12,9 +11,12 @@ define( [
     'osg/DrawArrayLengths',
     'osg/DrawElements',
     'osg/PrimitiveSet'
-], function ( Q, require, MACROUTILS, osgNameSpace, ReaderParser, Options, Notify, Image, BufferArray, DrawArrays, DrawArrayLengths, DrawElements, PrimitiveSet ) {
+], function ( Q, MACROUTILS, osgNameSpace, ReaderParser, Options, Notify, Image, BufferArray, DrawArrays, DrawArrayLengths, DrawElements, PrimitiveSet ) {
 
     'use strict';
+
+
+
 
     var Input = function ( json, identifier ) {
         this._json = json;
@@ -110,6 +112,39 @@ define( [
             }
 
             return url;
+        },
+
+
+        requestFile: function ( url, options ) {
+
+            var defer = Q.defer();
+
+            var req = new XMLHttpRequest();
+            req.open( 'GET', url, true );
+
+            // handle responseType
+            if ( options && options.responseType )
+                req.responseType = options.responseType;
+
+            if ( options && options.progress ) {
+                req.addEventListener( 'progress', options.progress, false );
+            }
+
+            req.addEventListener( 'error', function () {
+                defer.reject();
+            }, false );
+
+            req.addEventListener( 'load', function ( /*oEvent */) {
+
+                if ( req.responseType === 'arraybuffer' )
+                    defer.resolve( req.response );
+                else
+                    defer.resolve( req.responseText );
+
+            } );
+
+            req.send( null );
+            return defer.promise;
         },
 
         getObjectWrapper: function ( path ) {
@@ -231,28 +266,112 @@ define( [
                 options.prefixURL = prefix;
             }
 
-            var req = new XMLHttpRequest();
-            req.open( 'GET', url, true );
-            req.onreadystatechange = function ( /*aEvt*/) {
-                if ( req.readyState === 4 ) {
-                    if ( req.status === 200 ) {
-                        var ReaderParser = require( 'osgDB/ReaderParser' );
-                        Q.when( ReaderParser.parseSceneGraph( JSON.parse( req.responseText ),
-                                options ),
-                            function ( child ) {
-                                defer.resolve( child );
-                                //Notify.log( 'loaded ' + url );
+            var self = this;
 
-                            } ).fail( function ( error ) {
-                            defer.reject( error );
-                        } );
-                    } else {
-                        defer.reject( req.status );
-                    }
-                }
+            var ReaderParser = require( 'osgDB/ReaderParser' );
+
+            var readSceneGraph = function ( data ) {
+
+                ReaderParser.parseSceneGraph( data, options )
+                    .then( function ( child ) {
+                        defer.resolve( child );
+                       // Notify.log( 'loaded ' + url );
+                    } ).fail( function ( error ) {
+                        defer.reject( error );
+                    } );
             };
-            req.send( null );
+
+            var ungzipFile = function ( file ) {
+
+                function pad( n ) {
+                    return n.length < 2 ? '0' + n : n;
+                }
+
+                function uintToString( uintArray ) {
+                    var str = '';
+                    for ( var i = 0, len = uintArray.length; i < len; ++i ) {
+                        str += ( '%' + pad( uintArray[ i ].toString( 16 ) ) );
+                    }
+                    str = decodeURIComponent( str );
+                    return str;
+                }
+
+
+                var unpacked = self._unzipTypedArray( file );
+
+                var typedArray = new Uint8Array( unpacked );
+                var str = uintToString( typedArray );
+                return str;
+            };
+
+
+            // try to get the file as responseText to parse JSON
+            var fileTextPromise = self.requestFile( url );
+            fileTextPromise.then( function ( str ) {
+
+                var data;
+                try {
+
+                    data = JSON.parse( str );
+
+                } catch ( error ) { // can't parse try with ungzip code path
+
+                    Notify.error( 'cant parse url ' + url + ' try to gunzip' );
+
+                }
+
+                // we have the json, read it
+                if ( data )
+                    return readSceneGraph( data );
+
+
+                // no data try with gunzip
+                var fileGzipPromise = self.requestFile( url, {
+                    responseType: 'arraybuffer'
+                } );
+                fileGzipPromise.then( function ( file ) {
+
+                    var str = ungzipFile( file );
+                    data = JSON.parse( str );
+                    readSceneGraph( data );
+
+                } ).fail( function ( status ) {
+
+                    Notify.error( 'cant read file ' + url + ' status ' + status );
+                    defer.reject();
+
+                } ).done();
+
+                return true;
+
+            } ).fail( function ( status ) {
+
+                Notify.error( 'cant get file ' + url + ' status ' + status );
+                defer.reject();
+
+            } ).done();
+
             return defer.promise;
+        },
+
+        _unzipTypedArray: function ( binary ) {
+
+            var typedArray = new Uint8Array( binary );
+
+            // check magic number 1f8b
+            if ( typedArray[ 0 ] === 0x1f && typedArray[ 1 ] === 0x8b ) {
+                var zlib = require( 'zlib' );
+
+                if ( !zlib ) {
+                    Notify.error( 'osg failed to use a gunzip.min.js to uncompress a gz file.\n You can add this vendors to enable this feature or adds the good header in your gzip file served by your server' );
+                }
+
+                var zdec = new zlib.Gunzip( typedArray );
+                var result = zdec.decompress();
+                return result.buffer;
+            }
+
+            return binary;
         },
 
         readBinaryArrayURL: function ( url, options ) {
@@ -272,31 +391,26 @@ define( [
                 return this._identifierMap[ url ];
             }
             var defer = Q.defer();
-            var xhr = new XMLHttpRequest();
-            xhr.open( 'GET', url, true );
-            xhr.responseType = 'arraybuffer';
 
-            if ( this._defaultOptions.progressXHRCallback ) {
-                xhr.addEventListener( 'progress', this._defaultOptions.progressXHRCallback, false );
-            }
+            var filePromise = this.requestFile( url, {
+                responseType: 'arraybuffer',
+                progress: this._defaultOptions.progressXHRCallback
+            } );
 
-            xhr.addEventListener( 'error', function () {
+
+            filePromise.then( function ( file ) {
+
+                var buffer = this._unzipTypedArray( file );
+                this._identifierMap[ url ] = buffer;
+                defer.resolve( buffer );
+
+            }.bind( this ) ).fail( function ( // error
+            ) {
+
                 defer.reject();
-            }, false );
 
-            var self = this;
-            xhr.addEventListener( 'load', function ( /*oEvent */) {
-                var arrayBuffer = xhr.response; // Note: not oReq.responseText
-                if ( arrayBuffer ) {
-                    // var byteArray = new Uint8Array(arrayBuffer);
-                    self._identifierMap[ url ] = arrayBuffer;
-                    defer.resolve( arrayBuffer );
-                } else {
-                    defer.reject();
-                }
-            }, false );
+            } ).done();
 
-            xhr.send( null );
             this._identifierMap[ url ] = defer.promise;
             return defer.promise;
         },

@@ -44,6 +44,7 @@ define( [
         this._groupExpired = false;
         this._priority = 0.0;
         this._finished = false;
+        this._requests = [];
     };
 
     var FindPagedLODsVisitor = function ( pagedLODList, frameNumber ) {
@@ -104,6 +105,11 @@ define( [
             for ( var i = 0; i < numRanges; i++ ) {
                 request = plod.getDatabaseRequest( i );
                 if ( request !== undefined ) {
+                    for ( var h = request._requests.length -1 ; h >= 0; h--)
+                    {
+                        var xhr = request._requests.pop();
+                        xhr.abort();
+                    }
                     request._groupExpired = true;
                     if (request._promises){
                     for ( var j = 0; j< request._promises.length; j++ )
@@ -162,13 +168,13 @@ define( [
             // Remove expired nodes
             this.removeExpiredSubgraphs( frameStamp, 0.0025 );
             // Time to do the requests.
-            if ( !this._loading ) this.takeRequests();
+            this.takeRequests();
             // Add the loaded data to the graph
             this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
         },
 
         executeProgressCallback: function () {
-            if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 ) {
+            if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 || this._downloadingRequestsNumber > 0 ) {
                 this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
                 this._lastCB = false;
             } else {
@@ -232,7 +238,7 @@ define( [
 
                     // Clean the request
                     request._loadedModel = undefined;
-                    request = undefined;
+                    //request = undefined;
 
                 }
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
@@ -279,12 +285,10 @@ define( [
 
                 } );
                 for ( var i = 0; i < numRequests; i++ ) {
-                    this._downloadingRequestsNumber++;
                     this.processRequest( this._pendingRequests.shift() );
                 }
             }
         },
-
         processRequest: function ( dbrequest ) {
 
             this._loading = true;
@@ -292,7 +296,8 @@ define( [
             // Check if the request is valid;
             if ( dbrequest._groupExpired ) {
                 //Notify.log( 'DatabasePager::processRequest() Request expired.' );
-                that._downloadingRequestsNumber--;
+                for (var h = 0, k = dbrequest._url.length; h < k; h++)
+                    that._downloadingRequestsNumber--;
                 this._loading = false;
                 return;
             }
@@ -306,41 +311,35 @@ define( [
                     that._loading = false;
                 } );
             } else if ( dbrequest._url.length > 0 ) { // Load from URL
-                //var promiseArray = [];
-                //dbrequest._promises = [];
                 var pending = dbrequest._url.length;
                 var g = new Node();
                 dbrequest._loadedModel = g;
                 that._pendingNodes.push( dbrequest );
                 var retrieveChild = function ( i ){
-                    Q.when( that.loadNodeFromURL( dbrequest._prefixurl + dbrequest._url[ i ] ) ).then( function ( child ) {
+                    Q.when( that.loadNodeFromURL( dbrequest, i ) ).then( function ( child ) {
+                        // DEBUGSPHERE
+                       //  var bbs = child.getBound();
+                       //  var bs = Shape.createTexturedSphere( bbs.radius() );
+                       //  bs.setName( 'debugSphere' );
+                       //  bs.setCullingActive( false );
+                       //  that.setMaterialAndAlpha( bs, 0.5 );
+                       //  var transformSphere = new MatrixTransform();
+                       //  transformSphere.setMatrix( Matrix.makeTranslate( bbs._center[ 0 ], bbs._center[ 1 ], bbs._center[ 2 ], [] ) );
+                       //  transformSphere.addChild( bs );
+                       //  child.addChild(transformSphere);
                         dbrequest._loadedModel.addChild( child );
                         pending = pending - 1;
+                        that._downloadingRequestsNumber--;
                         if (pending === 0 ){
                             dbrequest._finished = true;
-                            that._downloadingRequestsNumber--;
                             that._loading = false;
                         }
                     } );
                 };
                 for (var i = 0, j = dbrequest._url.length; i < j; i++) {
+                    this._downloadingRequestsNumber++;
                     retrieveChild( i );
                 }
-
-                // Q.all( promiseArray ).then( function( ) {
-                //     // All the results from Q.all are on the argument as an array
-                //     // Now insert children in the right order
-                //     var g = new Node();
-                //     for ( var i = 0, j = promiseArray.length ; i < j; i++ ) {
-                //         g.addChild( promiseArray[ i ]git );
-                //     }
-                //     that._downloadingRequestsNumber--;
-                //     dbrequest._loadedModel = g;
-                //     that._pendingNodes.push( dbrequest );
-                //     that._loading = false;
-                //     dbrequest._promises = undefined;
-                //     //node.addChildNode(g);
-                // } );
             }
         },
 
@@ -354,18 +353,142 @@ define( [
             return defer;
         },
 
-        loadNodeFromURL: function ( url ) {
+        loadNodeFromURL: function ( dbrequest, i ) {
             var ReaderParser = require( 'osgDB/ReaderParser' );
             var defer = Q.defer();
-            // Call to ReaderParser just in case there is a custom readNodeURL Callback
-            // See osgDB/Options.js and/or osgDB/Input.js
-            // TODO: We should study if performance can be improved if separating the XHTTP request from
-            // the parsing. This way several/many request could be done at the same time.
-            // Also we should be able to cancel requests, so there is a need to have access
-            // to the HTTPRequest Object
-            Q.when( ReaderParser.readNodeURL( url ) ).then( function ( child ) {
-                defer.resolve( child );
+            var url = dbrequest._prefixurl + dbrequest._url[ i ];
+            var options = ReaderParser.registry().getOptions();
+
+            url = ReaderParser.registry().computeURL( url );
+            var that = this;
+            var readSceneGraph = function ( data ) {
+
+                ReaderParser.parseSceneGraph( data, options )
+                    .then( function ( child ) {
+                        defer.resolve( child );
+                       // Notify.log( 'loaded ' + url );
+                    } ).fail( function ( error ) {
+                        defer.reject( error );
+                    } );
+            };
+            var ungzipFile = function ( file ) {
+
+                function pad( n ) {
+                    return n.length < 2 ? '0' + n : n;
+                }
+
+                function uintToString( uintArray ) {
+                    var str = '';
+                    for ( var i = 0, len = uintArray.length; i < len; ++i ) {
+                        str += ( '%' + pad( uintArray[ i ].toString( 16 ) ) );
+                    }
+                    str = decodeURIComponent( str );
+                    return str;
+                }
+
+
+                var unpacked = ReaderParser.registry()._unzipTypedArray( file );
+
+                var typedArray = new Uint8Array( unpacked );
+                var str = uintToString( typedArray );
+                return str;
+            };
+
+            options = MACROUTILS.objectMix( {}, options );
+
+            // automatic prefix if non specfied
+            if ( options.prefixURL === undefined ) {
+                var prefix = this.getPrefixURL();
+                var index = url.lastIndexOf( '/' );
+                if ( index !== -1 ) {
+                    prefix = url.substring( 0, index + 1 );
+                }
+                options.prefixURL = prefix;
+            }
+
+            var fileTextPromise = this.requestFile( url, options, dbrequest );
+            fileTextPromise.then( function ( str ) {
+                var data;
+                try {
+
+                    data = JSON.parse( str );
+
+                } catch ( error ) { // can't parse try with ungzip code path
+
+                    //console.log( 'cant parse url ' + url + ' try to gunzip' );
+
+                }
+                // we have the json, read it
+                if ( data )
+                    return readSceneGraph( data );
+                // no data try with gunzip
+                var fileGzipPromise = that.requestFile( url, {
+                    responseType: 'arraybuffer'},
+                    dbrequest
+                    );
+
+                fileGzipPromise.then( function ( file ) {
+
+                    var str = ungzipFile( file );
+                    data = JSON.parse( str );
+                    readSceneGraph( data );
+
+                } ).fail( function ( ) {
+
+                    //console.log( 'cant read file ' + url + ' status ' + status );
+                    defer.reject();
+
+                } ).done();
+
+                return true;
+
+            } ).fail( function ( ) {
+
+                //console.log( 'cant get file ' + url + ' status ' + status );
+                defer.reject();
+
+            } ).done();
+
+            return defer.promise;
+        },
+
+        requestFile: function ( url, options, dbrequest ) {
+
+            var defer = Q.defer();
+
+            var req = new XMLHttpRequest();
+            dbrequest._requests.push( req );
+            req.open( 'GET', url, true );
+
+            // handle responseType
+            if ( options && options.responseType )
+                req.responseType = options.responseType;
+
+            if ( options && options.progress ) {
+                req.addEventListener( 'progress', options.progress, false );
+            }
+
+            req.addEventListener( 'error', function () {
+                defer.reject();
+            }, false );
+
+            req.addEventListener( 'load', function ( /*oEvent */) {
+
+                if ( req.responseType === 'arraybuffer' )
+                    defer.resolve( req.response );
+                else
+                    defer.resolve( req.responseText );
+
             } );
+            var that = this;
+            req.addEventListener( 'abort', function ( /*oEvent */) {
+                console.log('abort request');
+                that._downloadingRequestsNumber--;
+                defer.reject();
+            } );
+
+            req.send( null );
+
             return defer.promise;
         },
 
@@ -381,8 +504,8 @@ define( [
                 // If we don't have more time, break the loop.
                 if ( elapsedTime > availableTime ) return;
                 that._childrenToRemoveList.delete( node );
-                node.accept( new ReleaseVisitor() );
                 node.removeChildren();
+                node.accept( new ReleaseVisitor() );
                 node = null;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );

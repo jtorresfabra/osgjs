@@ -26,6 +26,7 @@ define( [
         this._frameNumberOfLastTraversal = 0;
         this._prefixURL = '';
         this._suffixURL = '';
+        this._numChildrenThatCannotBeExpired = 1;
     };
 
     /**
@@ -119,13 +120,18 @@ define( [
             var timed, framed;
             timed = this._perRangeDataList[ i ].timeStamp + this._expiryTime;
             framed = this._perRangeDataList[ i ].frameNumber + this._expiryFrame;
-            if ( timed < expiryTime && framed < expiryFrame && ( this._perRangeDataList[ i ].filename.length > 0 ||
+            if ( ( i > this._numChildrenThatCannotBeExpired - 1 ) && timed < expiryTime && framed < expiryFrame && ( this._perRangeDataList[ i ].filename.length > 0 ||
                     this._perRangeDataList[ i ].function !== undefined ) ) {
                 removedChildren.push( this.children[ i ] );
                 this.removeChild( this.children[ i ] );
                 this._perRangeDataList[ i ].loaded = false;
                 if ( this._perRangeDataList[ i ].dbrequest !== undefined ) {
                     this._perRangeDataList[ i ].dbrequest._groupExpired = true;
+                    for ( var h = this._perRangeDataList[ i ].dbrequest._requests.length -1 ; h >= 0; h--)
+                    {
+                        var xhr = this._perRangeDataList[ i ].dbrequest._requests.pop();
+                        xhr.abort();
+                    }
                     //this._perRangeDataList[ i ].dbrequest = undefined;
                 }
             }
