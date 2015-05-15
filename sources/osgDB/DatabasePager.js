@@ -209,7 +209,7 @@ define( [
             var elapsedTime = 0.0;
             var beginTime = Timer.instance().tick();
             this._pendingNodes.sort( function ( r1, r2 ) {
-                return r2._timeStamp - r1._timeStamp;
+                return r1._timeStamp - r2._timeStamp;
             } );
 
             for ( var i = 0; i < this._pendingNodes.length; i++ ) {
@@ -274,21 +274,26 @@ define( [
         takeRequests: function () {
             if ( this._pendingRequests.length ) {
                 var numRequests = Math.min( this._maxRequestsPerFrame, this._pendingRequests.length );
-                this._pendingRequests.sort( function ( r1, r2 ) {
+
+                var compare = function ( r1, r2 ) {
                     // Ask for newer requests first.
-                    var value = r2._timeStamp - r1._timeStamp;
+                    var value = r1._priority - r2._priority;
                     // Ask for the greater priority if the timestamp is the same.
                     if ( value === 0 ) {
-                        value = r2._priority - r1._priority;
+                        value = r1._timeStamp - r2._timeStamp;
                     }
                     return value;
+                };
 
-                } );
+                this._pendingRequests.sort( compare );
+
                 for ( var i = 0; i < numRequests; i++ ) {
+                    //this._downloadingRequestsNumber++;
                     this.processRequest( this._pendingRequests.shift() );
                 }
             }
         },
+
         processRequest: function ( dbrequest ) {
 
             this._loading = true;
@@ -327,13 +332,19 @@ define( [
                        //  transformSphere.setMatrix( Matrix.makeTranslate( bbs._center[ 0 ], bbs._center[ 1 ], bbs._center[ 2 ], [] ) );
                        //  transformSphere.addChild( bs );
                        //  child.addChild(transformSphere);
-                        dbrequest._loadedModel.addChild( child );
-                        pending = pending - 1;
                         that._downloadingRequestsNumber--;
+                        if ( dbrequest._loadedModel )
+                            dbrequest._loadedModel.addChild( child );
+                        pending = pending - 1;
                         if (pending === 0 ){
                             dbrequest._finished = true;
                             that._loading = false;
                         }
+                    }, 
+                    // Rejection Handler
+                    function ( /*reason*/ ) {
+                        that._downloadingRequestsNumber--;
+                        //console.log('rejection called', reason);
                     } );
                 };
                 for (var i = 0, j = dbrequest._url.length; i < j; i++) {
@@ -360,7 +371,7 @@ define( [
             var options = ReaderParser.registry().getOptions();
 
             url = ReaderParser.registry().computeURL( url );
-            var that = this;
+            //var that = this;
             var readSceneGraph = function ( data ) {
 
                 ReaderParser.parseSceneGraph( data, options )
@@ -370,28 +381,6 @@ define( [
                     } ).fail( function ( error ) {
                         defer.reject( error );
                     } );
-            };
-            var ungzipFile = function ( file ) {
-
-                function pad( n ) {
-                    return n.length < 2 ? '0' + n : n;
-                }
-
-                function uintToString( uintArray ) {
-                    var str = '';
-                    for ( var i = 0, len = uintArray.length; i < len; ++i ) {
-                        str += ( '%' + pad( uintArray[ i ].toString( 16 ) ) );
-                    }
-                    str = decodeURIComponent( str );
-                    return str;
-                }
-
-
-                var unpacked = ReaderParser.registry()._unzipTypedArray( file );
-
-                var typedArray = new Uint8Array( unpacked );
-                var str = uintToString( typedArray );
-                return str;
             };
 
             options = MACROUTILS.objectMix( {}, options );
@@ -410,36 +399,13 @@ define( [
             fileTextPromise.then( function ( str ) {
                 var data;
                 try {
-
                     data = JSON.parse( str );
-
                 } catch ( error ) { // can't parse try with ungzip code path
-
                     //console.log( 'cant parse url ' + url + ' try to gunzip' );
-
                 }
                 // we have the json, read it
                 if ( data )
                     return readSceneGraph( data );
-                // no data try with gunzip
-                var fileGzipPromise = that.requestFile( url, {
-                    responseType: 'arraybuffer'},
-                    dbrequest
-                    );
-
-                fileGzipPromise.then( function ( file ) {
-
-                    var str = ungzipFile( file );
-                    data = JSON.parse( str );
-                    readSceneGraph( data );
-
-                } ).fail( function ( ) {
-
-                    //console.log( 'cant read file ' + url + ' status ' + status );
-                    defer.reject();
-
-                } ).done();
-
                 return true;
 
             } ).fail( function ( ) {
@@ -469,7 +435,8 @@ define( [
             }
 
             req.addEventListener( 'error', function () {
-                defer.reject();
+                //that._downloadingRequestsNumber--;
+                defer.reject('error request');
             }, false );
 
             req.addEventListener( 'load', function ( /*oEvent */) {
@@ -480,11 +447,8 @@ define( [
                     defer.resolve( req.responseText );
 
             } );
-            var that = this;
             req.addEventListener( 'abort', function ( /*oEvent */) {
-                console.log('abort request');
-                that._downloadingRequestsNumber--;
-                defer.reject();
+                defer.reject('aborted request');
             } );
 
             req.send( null );
