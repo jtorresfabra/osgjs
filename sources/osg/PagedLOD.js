@@ -193,9 +193,9 @@ define( [
                                 }
 
                                 this.children[ j ].accept( visitor );
-                                // if ( this._perRangeDataList[ j ].dbrequest !== undefined &&  this._perRangeDataList[ j ].dbrequest._finished === false ) {
-                                //    this.children[ 0 ].accept( visitor );
-                                // }
+                                if ( this._perRangeDataList[ j ].dbrequest !== undefined &&  this._perRangeDataList[ j ].dbrequest._finished === false ) {
+                                   this.children[ 0 ].accept( visitor );
+                                }
                                 lastChildTraversed = j;
                             } else {
 
@@ -228,9 +228,12 @@ define( [
                                 this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
-                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined ) {
+                                if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined && this._perRangeDataList[ numChildren ].dbrequest._finished === false) {
                                     this._perRangeDataList[ numChildren ].dbrequest._timeStamp = visitor.getFrameStamp().getSimulationTime();
                                     this._perRangeDataList[ numChildren ].dbrequest._priority = priority;
+                                } else {
+                                    // The DB request is undefined, so the DBPager was not accepting requests, we need to ask for the child again.
+                                    this._perRangeDataList[ numChildren ].loaded = false;
                                 }
                             }
                         }

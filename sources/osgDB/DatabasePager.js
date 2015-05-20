@@ -42,7 +42,6 @@ define( [
         this._groupExpired = false;
         this._priority = 0.0;
         this._finished = false;
-
     };
 
     var FindPagedLODsVisitor = function ( pagedLODList, frameNumber ) {
@@ -60,13 +59,13 @@ define( [
         }
     } );
 
-    var ReleaseVisitor = function ( gl ) {
+    var ReleaseVisitor = function () {
         NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
-        this.gl = gl;
     };
     ReleaseVisitor.prototype = MACROUTILS.objectInherit( NodeVisitor.prototype, {
         apply: function ( node ) {
-            node.releaseGLObjects( this.gl );
+            // mark GLResources in nodes to be released
+            node.releaseGLObjects();
             this.traverse( node );
         }
     } );
@@ -156,7 +155,7 @@ define( [
             // Remove expired nodes
             this.removeExpiredSubgraphs( frameStamp, 0.0025 );
             // Time to do the requests.
-            if ( !this._loading ) this.takeRequests();
+            this.takeRequests();
             // Add the loaded data to the graph
             this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
         },
@@ -200,7 +199,7 @@ define( [
                     return r2._timeStamp - r1._timeStamp;
             } );
 
-            for (var i = 0; i< this._pendingNodes.length; i++ ) {
+            for ( var i = 0; i < this._pendingNodes.length; i++ ) {
                 if ( elapsedTime > availableTime ) return 0.0;
 
                 var request = this._pendingNodes.shift();
@@ -226,7 +225,7 @@ define( [
 
                     // Clean the request
                     request._loadedModel = undefined;
-                    request = undefined;
+                    //request = undefined;
 
                 }
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
@@ -262,7 +261,8 @@ define( [
         takeRequests: function ( ) {
             if ( this._pendingRequests.length ) {
                 var numRequests = Math.min( this._maxRequestsPerFrame, this._pendingRequests.length );
-                this._pendingRequests.sort( function ( r1, r2 ) {
+
+                var compare = function ( r1, r2 ) {
                     // Ask for newer requests first.
                     var value = r2._timeStamp - r1._timeStamp;
                     // Ask for the greater priority if the timestamp is the same.
@@ -270,8 +270,10 @@ define( [
                         value = r2._priority - r1._priority;
                     }
                     return value;
+                };
 
-                } );
+                this._pendingRequests.sort( compare );
+
                 for ( var i = 0; i < numRequests; i++ ) {
                     this._downloadingRequestsNumber++;
                     this.processRequest( this._pendingRequests.shift() );
@@ -306,6 +308,7 @@ define( [
                     dbrequest._loadedModel = child;
                     that._pendingNodes.push( dbrequest );
                     that._loading = false;
+                    dbrequest._finished = true;
                 } );
             }
         },
@@ -346,8 +349,9 @@ define( [
                 // If we don't have more time, break the loop.
                 if ( elapsedTime > availableTime ) return;
                 that._childrenToRemoveList.delete( node );
-                node.accept( new ReleaseVisitor( gl ) );
-                node.removeChildren();
+                node.removeChildren();                
+                node.accept( new ReleaseVisitor( ) );
+
                 node = null;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );
@@ -382,17 +386,18 @@ define( [
             var expiredPagedLODVisitor = new ExpirePagedLODVisitor();
 
             this._activePagedLODList.forEach( function ( plod ) {
-                if ( elapsedTime > availableTime ) return;
-                if ( numToPrune < 0 ) return;
+                // Check if we have time, else return 0
+                if ( elapsedTime > availableTime ) return 0.0;
+                if ( numToPrune < 0 ) return availableTime;
                 // See if plod is still active, so we don't have to prune
-                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return;
+                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return availableTime;
                 expiredPagedLODVisitor.removeExpiredChildrenAndFindPagedLODs( plod, expiryTime, expiryFrame, removedChildren );
                 for ( var i = 0; i < expiredPagedLODVisitor._childrenList.length; i++ ) {
                     that._activePagedLODList.delete( expiredPagedLODVisitor._childrenList[ i ] );
                     numToPrune--;
                 }
                 // Add to the remove list all the childs deleted
-                for ( i = 0; i < removedChildren.length; i++ ){
+                for ( i = 0; i < removedChildren.length; i++ ) {
                     that._childrenToRemoveList.add( removedChildren[ i ] );
                 }
                 expiredPagedLODVisitor._childrenList.length = 0;
