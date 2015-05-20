@@ -6,10 +6,10 @@ define( [
     'osg/Program',
     'osg/StateAttribute',
     'osg/Stack',
-    'osg/TextureManager',
+    'osg/Texture',
     'osg/Uniform',
     'osg/Utils'
-], function ( Map, Matrix, Notify, Object, Program, StateAttribute, Stack, TextureManager, Uniform, MACROUTILS ) {
+], function ( Map, Matrix, Notify, Object, Program, StateAttribute, Stack, Texture, Uniform, MACROUTILS ) {
 
     'use strict';
 
@@ -47,17 +47,12 @@ define( [
         } );
 
 
-        this.previousHasColorAttrib = false;
+        this._previousColorAttribPair = {};
         this.vertexAttribMap = {};
         this.vertexAttribMap._disable = [];
         this.vertexAttribMap._keys = [];
 
         this._frameStamp = undefined;
-
-        // texture manager is referenced here because it's associated with gl object
-        // of the gl context intialized with State
-        this._textureManager = new TextureManager();
-
 
         // we dont use Map because in this use case with a few entries
         // {} is faster
@@ -82,10 +77,6 @@ define( [
             return this._programCommonUniformsCache;
         },
 
-        getTextureManager: function () {
-            return this._textureManager;
-        },
-
         setGraphicContext: function ( graphicContext ) {
             this._graphicContext = graphicContext;
         },
@@ -104,16 +95,16 @@ define( [
             if ( stateset.attributeMap ) {
                 this.pushAttributeMap( this.attributeMap, stateset.attributeMap );
             }
+
             if ( stateset.textureAttributeMapList ) {
                 var list = stateset.textureAttributeMapList;
                 for ( var textureUnit = 0, l = list.length; textureUnit < l; textureUnit++ ) {
                     if ( !list[ textureUnit ] ) {
                         continue;
                     }
-                    if ( !this.textureAttributeMapList[ textureUnit ] ) {
-                        this.textureAttributeMapList[ textureUnit ] = new Map();
-                    }
-                    this.pushAttributeMap( this.textureAttributeMapList[ textureUnit ], list[ textureUnit ] );
+
+                    var textureUnitAttributeMap = this.getOrCreateTextureAttributeMap( textureUnit );
+                    this.pushAttributeMap( textureUnitAttributeMap, list[ textureUnit ] );
                 }
             }
 
@@ -184,10 +175,10 @@ define( [
         } )(),
 
 
-        // needed because we use a cache of matrix in cullvisitor
-        // so we can have the same reference between frame if only
-        // one matrix
-        resetApplyMatrix: function () {
+        // needed because we use a cache during the frame to avoid
+        // applying uniform or operation. At each frame we need to
+        // invalidate those informations
+        resetCacheFrame: function () {
             this._modelViewMatrix = this._projectionMatrix = undefined;
         },
 
@@ -278,6 +269,14 @@ define( [
             this.popStateSet();
         },
 
+        getStateSetStackHash: function () {
+            var values = this.stateSets.values();
+            var sum = 0;
+            for ( var i = 0, l = values.length; i < l; i++ )
+                sum += values[ i ].getInstanceID();
+            return sum;
+        },
+
         popAllStateSets: function () {
             while ( this.stateSets.values().length ) {
                 this.popStateSet();
@@ -285,6 +284,8 @@ define( [
         },
 
         popStateSet: function () {
+
+            if ( this.stateSets.empty() ) return;
 
             var stateset = this.stateSets.pop();
 
@@ -349,11 +350,12 @@ define( [
             gl.activeTexture( gl.TEXTURE0 + unit );
             var key = attribute.getTypeMember();
 
+
             if ( !this.textureAttributeMapList[ unit ] ) {
                 this.textureAttributeMapList[ unit ] = new Map();
             }
 
-            var textureUnitAttributeMap = this.textureAttributeMapList[ unit ];
+            var textureUnitAttributeMap = this.getOrCreateTextureAttributeMap( unit );
             var attributeStack = textureUnitAttributeMap[ key ];
 
             if ( !attributeStack ) {
@@ -492,21 +494,26 @@ define( [
         },
 
 
+        // this funtion must called only if stack has changed
+        // check applyTextureAttributeMapList
         _applyTextureAttributeStack: function ( gl, textureUnit, attributeStack ) {
+
             var attribute;
             if ( attributeStack.values().length === 0 ) {
                 attribute = attributeStack.globalDefault;
             } else {
                 attribute = attributeStack.back().object;
             }
-            if ( attributeStack.asChanged ) {
 
+            // if the the stack has changed but the last applied attribute is the same
+            // then we dont need to apply it again
+            if ( attributeStack.lastApplied !== attribute ) {
                 gl.activeTexture( gl.TEXTURE0 + textureUnit );
                 attribute.apply( this, textureUnit );
                 attributeStack.lastApplied = attribute;
-                attributeStack.asChanged = false;
-
             }
+
+            attributeStack.asChanged = false;
         },
 
         applyTextureAttributeMapList: function ( textureAttributesMapList ) {
@@ -526,9 +533,9 @@ define( [
                     var key = textureAttributeMapKeys[ i ];
 
                     var attributeStack = textureAttributeMap[ key ];
-                    if ( !attributeStack ) {
-                        continue;
-                    }
+
+                    // skip if not stack or not changed in stack
+                    if ( !attributeStack || !attributeStack.asChanged ) continue;
 
                     this._applyTextureAttributeStack( gl, textureUnit, attributeStack );
                     // var attribute;
@@ -548,20 +555,53 @@ define( [
                 }
             }
         },
-        setGlobalDefaultValue: function ( attribute ) {
 
-            var key = attribute.getTypeMember();
+        setGlobalDefaultValue: function ( attribute ) {
+            Notify.log( 'setGlobalDefaultValue is deprecated, use instead setGlobalDefaultAttribute' );
+            this.setGlobalDefaultAttribute( attribute );
+        },
+
+        setGlobalDefaultAttribute: function ( attribute ) {
+            var typeMember = attribute.getTypeMember();
             var attributeMap = this.attributeMap;
 
-            if ( attributeMap[ key ] ) {
-                attributeMap[ key ].globalDefault = attribute;
-
-            } else {
-                attributeMap[ key ] = new Stack();
-                attributeMap[ key ].globalDefault = attribute;
-
-                this.attributeMap.dirty();
+            if ( attributeMap[ typeMember ] === undefined ) {
+                attributeMap[ typeMember ] = new Stack();
+                attributeMap.dirty();
             }
+
+            attributeMap[ typeMember ].globalDefault = attribute;
+        },
+
+        getGlobalDefaultAttribute: function ( typeMember ) {
+            var attributeMap = this.attributeMap;
+            if ( attributeMap[ typeMember ] === undefined ) return undefined;
+
+            return attributeMap[ typeMember ].globalDefault;
+        },
+
+        setGlobalDefaultTextureAttribute: function ( unit, attribute ) {
+            var attributeMap = this.getOrCreateTextureAttributeMap( unit );
+
+            var typeMember = attribute.getTypeMember();
+            if ( attributeMap[ typeMember ] === undefined ) {
+                attributeMap[ typeMember ] = new Stack();
+                attributeMap.dirty();
+            }
+
+            var as = attributeMap[ typeMember ];
+            as.globalDefault = attribute;
+        },
+
+        getGlobalDefaultTextureAttribute: function ( unit, typeMember ) {
+            var attributeMap = this.getOrCreateTextureAttributeMap( unit );
+            var as = attributeMap[ typeMember ];
+            return as.globalDefault;
+        },
+
+        getOrCreateTextureAttributeMap: function ( unit ) {
+            if ( !this.textureAttributeMapList[ unit ] ) this.textureAttributeMapList[ unit ] = new Map();
+            return this.textureAttributeMapList[ unit ];
         },
 
         pushAttributeMap: function ( attributeMap, stateSetAttributeMap ) {
@@ -647,7 +687,9 @@ define( [
             }
 
             var program = this.attributeMap.Program.lastApplied;
-            if ( !program._uniformsCache.ArrayColorEnabled ) return; // no color array uniform exit
+
+            if ( !program._uniformsCache.ArrayColorEnabled ||
+                !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
 
 
             var gl = this.getGraphicContext();
@@ -656,14 +698,20 @@ define( [
 
             // check if we have colorAttribute on the current geometry
             var color = program._attributesCache.Color;
-            if ( color !== undefined ) hasColorAttrib = this.vertexAttribMap[ color ];
+            hasColorAttrib = this.vertexAttribMap[ color ];
 
-            // no change -> exit
-           // if ( this.previousHasColorAttrib === hasColorAttrib ) return;
+
+            // check per program
+            var previousColorAttrib = this._previousColorAttribPair[ program.getInstanceID() ];
+
+            // no change with the same program -> exit
+            if ( previousColorAttrib === hasColorAttrib ) return;
+
+            this._previousColorAttribPair[ program.getInstanceID() ] = hasColorAttrib;
+
 
             // update uniform
             var uniform = this.uniforms.ArrayColorEnabled.globalDefault;
-            this.previousHasColorAttrib = hasColorAttrib;
 
             if ( hasColorAttrib ) {
                 uniform.get()[ 0 ] = 1.0;

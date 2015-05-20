@@ -54,6 +54,11 @@ define( [
             return this._cullVisitor;
         },
 
+        setCullVisitor: function ( cv ) {
+            if ( cv && !cv.getRenderer() ) cv.setRenderer( this );
+            this._cullVisitor = cv;
+        },
+
         getCamera: function () {
             return this._camera;
         },
@@ -186,7 +191,7 @@ define( [
 
             var state = this.getState();
 
-            state.resetApplyMatrix(); // important because cache are used in cullvisitor
+            state.resetCacheFrame(); // important because cache are used in cullvisitor
 
             this._renderStage.draw( state );
 

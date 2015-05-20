@@ -9,11 +9,30 @@ define( [
         this._name = 'AbstractNode';
         this._inputs = [];
         this._outputs = null;
+
+        // category of node
+        // same name implies same
+        // define/function
+        //this.type = '';
+
+        // uuid: unicity
+        // allows multipe node of same type
+        // declaring multipe code paths
+        // inside the main
         this._id = instance++;
+
         this._text = undefined;
     };
 
     Node.prototype = {
+
+        getID: function () {
+            return this._id;
+        },
+
+        getType: function () {
+            return this.type;
+        },
 
         toString: function () {
             return this._name + ' : { input: ' + this._inputs.toString() + ' }, output: { ' + this._output.toString() + ' } ';

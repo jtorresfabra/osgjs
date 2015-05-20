@@ -5,8 +5,9 @@ define( [
     'osg/Matrix',
     'osg/Vec3',
     'osg/Vec4',
-    'osg/Map'
-], function ( MACROUTILS, StateAttribute, Uniform, Matrix, Vec3, Vec4, Map ) {
+    'osg/Map',
+    'osg/Notify'
+], function ( MACROUTILS, StateAttribute, Uniform, Matrix, Vec3, Vec4, Map, Notify ) {
     'use strict';
 
 
@@ -29,9 +30,10 @@ define( [
         this._position = [ 0.0, 0.0, 1.0, 0.0 ];
         this._direction = [ 0.0, 0.0, -1.0 ];
 
-        // TODO : refactor lights management
-        // w=1.0 (isHemi), w=-1.0 (isNotHemi)
-        this._ground = [ 1.0, 0.0, 0.0, -1.0 ];
+        // TODO : refactor lights management w=1.0 (isHemi), w=-1.0
+        // (isNotHemi) _ground contains the color but w says if it's
+        // an hemi or not
+        this._ground = [ 0.2, 0.2, 0.2, -1.0 ];
 
         this._spotCutoff = 180.0;
         this._spotBlend = 0.01;
@@ -73,7 +75,7 @@ define( [
         },
 
         getHash: function () {
-            return this.getTypeMember() + this.getLightType() + this.isEnable().toString();
+            return this.getTypeMember() + this.getLightType() + this.isEnabled().toString();
         },
 
         getOrCreateUniforms: function () {
@@ -119,15 +121,22 @@ define( [
 
         // enable / disable is not implemented in uniform
         // we should add it
-        isEnable: function () {
+        isEnabled: function () {
             return this._enable;
         },
-        setEnable: function ( bool ) {
+        setEnabled: function ( bool ) {
             this._enable = bool;
             this.dirty();
         },
-
-
+        // Deprecated methods, should be removed in the future
+        isEnable: function () {
+            Notify.log( 'Light.isEnable() is deprecated, use isEnabled instead' );
+            return this.isEnabled();
+        },
+        setEnable: function ( bool ) {
+            Notify.log( 'Light.setEnable() is deprecated, use setEnabled instead' );
+            this.setEnabled( bool );
+        },
         // colors
         setAmbient: function ( a ) {
             Vec4.copy( a, this._ambient );
@@ -191,6 +200,7 @@ define( [
             return this._spotBlend;
         },
 
+        // set/get the color of the ground
         setGround: function ( a ) {
             Vec3.copy( a, this._ground );
             this.dirty();
@@ -295,6 +305,10 @@ define( [
             return this._ground[ 3 ] >= 0.0;
         },
 
+        // matrix is current model view, which can mean:
+        // world (node refAbsolute)
+        // world+camera (camera is refAbsolute)
+        // world+camera+camera+... (camera relative...)
         applyPositionedUniform: function ( matrix /*, state*/ ) {
 
             var uniformMap = this.getOrCreateUniforms();

@@ -6,8 +6,9 @@ define( [
     'osg/Matrix',
     'osg/Vec3',
     'osg/Vec4',
-    'osg/Map'
-], function ( MACROUTILS, StateAttribute, Texture, Uniform, Matrix, Vec3, Vec4, Map ) {
+    'osg/Map',
+    'osg/Notify'
+], function ( MACROUTILS, StateAttribute, Texture, Uniform, Matrix, Vec3, Vec4, Map, Notify ) {
     'use strict';
 
 
@@ -53,6 +54,7 @@ define( [
         // kernel size & type for pcf
         this._kernelSizePCF = undefined;
 
+        this._fakePCF = true;
         this._enable = !disable;
 
     };
@@ -115,6 +117,12 @@ define( [
         setKernelSizePCF: function ( v ) {
             this._kernelSizePCF = v;
         },
+        getFakePCF: function () {
+            return this._fakePCF;
+        },
+        setFakePCF: function ( v ) {
+            this._fakePCF = v;
+        },
         setPrecision: function ( precision ) {
             this._precision = precision;
             this.dirty();
@@ -162,6 +170,14 @@ define( [
             return obj.uniforms[ typeMember ];
         },
 
+        getExtensions: function () {
+            var algo = this.getAlgorithm();
+            if ( algo === 'PCF' ) {
+                return [ '#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif' ];
+            } else {
+                return [];
+            }
+        },
 
         // Here to be common between  caster and receiver
         // (used by shadowMap and shadow node shader)
@@ -188,6 +204,11 @@ define( [
             } else if ( algo === 'PCF' ) {
                 defines.push( '#define _PCF' );
                 var pcf = this.getKernelSizePCF();
+
+                if ( this._fakePCF ) {
+                    defines.push( '#define _FAKE_PCF 1' );
+                }
+
                 switch ( pcf ) {
                 case '4Poisson(16texFetch)':
                     defines.push( '#define _POISSON_PCF' );
@@ -209,9 +230,9 @@ define( [
                     defines.push( '#define _POISSON_PCF' );
                     defines.push( '#define _PCFx32' );
                     break;
-                case '64Poisson(256texFetch)':
-                    defines.push( '#define _POISSON_PCF' );
-                    defines.push( '#define _PCFx64' );
+                case '1Band(1texFetch)':
+                    defines.push( '#define _NONE' );
+                    defines.push( '#define _PCFx1' );
                     break;
                 case '4Band(4texFetch)':
                     defines.push( '#define _BAND_PCF' );
@@ -225,6 +246,10 @@ define( [
                     defines.push( '#define _BAND_PCF' );
                     defines.push( '#define _PCFx16' );
                     break;
+                case '4Tap(16texFetch)':
+                    defines.push( '#define _TAP_PCF' );
+                    defines.push( '#define _PCFx4' );
+                    break;
                 case '9Tap(36texFetch)':
                     defines.push( '#define _TAP_PCF' );
                     defines.push( '#define _PCFx9' );
@@ -234,9 +259,9 @@ define( [
                     defines.push( '#define _PCFx25' );
                     break;
                 default:
-                case '4Tap(16texFetch)':
+                case '1Tap(4texFetch)':
                     defines.push( '#define _TAP_PCF' );
-                    defines.push( '#define _PCFx4' );
+                    defines.push( '#define _PCFx1' );
                     break;
                 }
             } else if ( algo === 'VSM' ) {
@@ -267,14 +292,20 @@ define( [
             this.setDirty( false );
         },
 
-        // need a isEnable to let the ShaderGenerator to filter
+        // need a isEnabled to let the ShaderGenerator to filter
         // StateAttribute from the shader compilation
-        isEnable: function () {
+        isEnabled: function () {
             return this._enable;
         },
-
+        // Deprecated methods, should be removed in the future
+        isEnable: function () {
+            Notify.log( 'ShadowAttribute.isEnable() is deprecated, use isEnabled() instead' );
+            return this.isEnabled();
+        },
         getHash: function () {
-            return this.getTypeMember() + this.getAlgorithm() + this.getKernelSizePCF();
+
+            return this.getTypeMember() + '_' + this.getAlgorithm() + '_' + this.getKernelSizePCF() + '_' + this.getFakePCF();
+
         }
 
     } ), 'osgShadow', 'ShadowAttribute' );

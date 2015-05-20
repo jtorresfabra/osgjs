@@ -68,6 +68,12 @@ define( [
         setCamera: function ( camera ) {
             this.camera = camera;
         },
+        getCamera: function () {
+            return this.camera;
+        },
+        getPositionedAttribute: function () {
+            return this.positionedAttribute;
+        },
         addPreRenderStage: function ( rs, order ) {
             for ( var i = 0, l = this.preRenderList.length; i < l; i++ ) {
                 var render = this.preRenderList[ i ];
@@ -222,7 +228,7 @@ define( [
 
             gl.clear( this.clearMask );
 
-            if ( this.positionedAttribute ) {
+            if ( this.positionedAttribute.length !== 0 ) {
                 this.applyPositionedAttribute( state, this.positionedAttribute );
             }
 

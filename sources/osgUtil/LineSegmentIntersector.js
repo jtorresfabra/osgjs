@@ -5,30 +5,30 @@
 
 define( [
     'osg/Vec3',
-    'osgUtil/TriangleIntersector',
-    'osg/Matrix'
-], function ( Vec3, TriangleIntersector, Matrix ) {
+    'osg/Matrix',
+    'osgUtil/TriangleIntersector'
+], function ( Vec3, Matrix, TriangleIntersector ) {
 
     'use strict';
 
     var LineSegmentIntersector = function () {
-        this._start = [];
-        this._end = [];
-        this._iStart = [];
-        this._iEnd = [];
+        this._start = Vec3.create();
+        this._end = Vec3.create();
+        this._iStart = Vec3.create();
+        this._iEnd = Vec3.create();
         this._intersections = [];
     };
 
     LineSegmentIntersector.prototype = {
         set: function ( start, end ) {
-            this._start = start;
-            this._end = end;
+            Vec3.copy( start, this._start );
+            Vec3.copy( end, this._end );
         },
         setStart: function ( start ) {
-            this._start = start;
+            Vec3.copy( start, this._start );
         },
         setEnd: function ( end ) {
-            this._end = end;
+            Vec3.copy( end, this._end );
         },
         reset: function () {
             // Clear the intersections vector
@@ -81,7 +81,7 @@ define( [
             var kdtree = node.getShape();
             if ( kdtree ) {
                 // Use KDTREES
-                kdtree.intersect( this._iStart, this._iEnd, this._intersections, iv.nodePath );
+                return kdtree.intersectRay( this._iStart, this._iEnd, this._intersections, iv.nodePath );
             } else {
                 // Use the TriangleIntersector
                 var ti = new TriangleIntersector();
@@ -99,6 +99,7 @@ define( [
                 // No intersection found
                 return false;
             }
+            return false;
         },
         getIntersections: function () {
             return this._intersections;
@@ -107,10 +108,8 @@ define( [
             Matrix.inverse( matrix, matrix );
             Matrix.transformVec3( matrix, this._start, this._iStart );
             Matrix.transformVec3( matrix, this._end, this._iEnd );
-        },
+        }
     };
-
-
 
     return LineSegmentIntersector;
 } );

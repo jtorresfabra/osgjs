@@ -1,6 +1,4 @@
 define( [
-    'osg/BoundingSphere',
-    'osg/ComputeBoundsVisitor',
     'osg/Utils',
     'osg/Vec3',
     'osg/Matrix',
@@ -12,7 +10,7 @@ define( [
     'osgGA/OrbitManipulatorDeviceOrientationController',
     'osgGA/OrbitManipulatorOculusController',
 
-], function ( BoundingSphere, ComputeBoundsVisitor, MACROUTILS, Vec3, Matrix, Manipulator, OrbitManipulatorLeapMotionController, OrbitManipulatorMouseKeyboardController, OrbitManipulatorHammerController, OrbitManipulatorGamePadController, OrbitManipulatorDeviceOrientationController, OrbitManipulatorOculusController ) {
+], function ( MACROUTILS, Vec3, Matrix, Manipulator, OrbitManipulatorLeapMotionController, OrbitManipulatorMouseKeyboardController, OrbitManipulatorHammerController, OrbitManipulatorGamePadController, OrbitManipulatorDeviceOrientationController, OrbitManipulatorOculusController ) {
 
     'use strict';
 
@@ -23,6 +21,7 @@ define( [
     var OrbitManipulator = function () {
         Manipulator.call( this );
         this._homePosition = [ 0.0, 0.0, 0.0 ];
+        this._frustum = {};
         this.init();
     };
 
@@ -103,6 +102,8 @@ define( [
         'Oculus',
     ];
 
+    var DOT_LIMIT = 0.95; // angle limit around the pole
+
     /** @lends OrbitManipulator.prototype */
     OrbitManipulator.prototype = MACROUTILS.objectInherit( Manipulator.prototype, {
         init: function () {
@@ -111,8 +112,8 @@ define( [
             this._upz = [ 0.0, 0.0, 1.0 ];
             Vec3.init( this._target );
 
-            var rot1 = Matrix.makeRotate( Math.PI, 0.0, 0.0, 1.0, Matrix.create() );
-            var rot2 = Matrix.makeRotate( -Math.PI / 10.0, 1.0, 0.0, 0.0, Matrix.create() );
+            var rot1 = Matrix.makeRotate( -Math.PI, 0.0, 0.0, 1.0, Matrix.create() );
+            var rot2 = Matrix.makeRotate( Math.PI / 10.0, 1.0, 0.0, 0.0, Matrix.create() );
             this._rotation = Matrix.create();
             Matrix.mult( rot1, rot2, this._rotation );
             this._time = 0.0;
@@ -150,9 +151,6 @@ define( [
         reset: function () {
             this.init();
         },
-        setNode: function ( node ) {
-            this._node = node;
-        },
         setTarget: function ( target ) {
             Vec3.copy( target, this._target );
             var eyePos = [ 0.0, 0.0, 0.0 ];
@@ -169,6 +167,15 @@ define( [
 
                 Vec3.sub( eye, center, f );
                 Vec3.normalize( f, f );
+
+                var p = Vec3.dot( f, this._upz );
+                if ( p > DOT_LIMIT ) {
+                    // we force z to DOT_LIMIT and we normalize the vec3 vector by only editing the x and y component
+                    var a = Math.sqrt( ( 1.0 - DOT_LIMIT * DOT_LIMIT ) / ( f[ 0 ] * f[ 0 ] + f[ 1 ] * f[ 1 ] ) );
+                    f[ 0 ] *= a;
+                    f[ 1 ] *= a;
+                    f[ 2 ] = DOT_LIMIT;
+                }
 
                 Vec3.cross( f, this._upz, s );
                 Vec3.normalize( s, s );
@@ -201,25 +208,10 @@ define( [
             };
         } )(),
         computeHomePosition: function ( useBoundingBox ) {
-
-            if ( this._node !== undefined ) {
-
-                var bs;
-                if ( useBoundingBox || this._flags & Manipulator.COMPUTE_HOME_USING_BBOX ) {
-                    bs = new BoundingSphere();
-                    var visitor = new ComputeBoundsVisitor();
-                    this._node.accept( visitor );
-                    var bb = visitor.getBoundingBox();
-
-                    if ( bb.valid() )
-                        bs.expandByBoundingBox( bb );
-                } else {
-                    bs = this._node.getBound();
-                }
-
-                this.setDistance( bs.radius() * 1.5 );
-                this.setTarget( bs.center() );
-            }
+            var bs = this.getHomeBound( useBoundingBox );
+            if ( !bs ) return;
+            this.setDistance( this.getHomeDistance( bs ) );
+            this.setTarget( bs.center() );
         },
 
         getHomePosition: function () {
@@ -254,8 +246,15 @@ define( [
             var x = [ 0.0, 0.0, 0.0 ];
             var y = [ 0.0, 0.0, 0.0 ];
             return function ( dx, dy ) {
-                dy *= this._distance;
-                dx *= this._distance;
+                var proj = this._camera.getProjectionMatrix();
+                // modulate panning speed with verticalFov value
+                // if it's an orthographic we don't change the panning speed
+                // TODO : manipulators in osgjs don't support well true orthographic camera anyway because they
+                // manage the view matrix (and you need to edit the projection matrix to 'zoom' for true ortho camera) 
+                var vFov = proj[ 15 ] === 1 ? 1.0 : 2.00 / proj[ 5 ];
+                dy *= this._distance * vFov;
+                dx *= this._distance * vFov;
+
                 Matrix.inverse( this._rotation, inv );
                 x[ 0 ] = Matrix.get( inv, 0, 0 );
                 x[ 1 ] = Matrix.get( inv, 0, 1 );
@@ -280,11 +279,16 @@ define( [
             var inv = Matrix.create();
             var tmp = [ 0.0, 0.0, 0.0 ];
             var tmpDist = [ 0.0, 0.0, 0.0 ];
+            var radLimit = Math.acos( DOT_LIMIT ) * 2.0;
             return function ( dx, dy ) {
-                Matrix.makeRotate( dx / 10.0, 0.0, 0.0, 1.0, of );
+                Matrix.makeRotate( -dx / 10.0, 0.0, 0.0, 1.0, of );
                 Matrix.mult( this._rotation, of, r );
 
-                Matrix.makeRotate( dy / 10.0, 1.0, 0.0, 0.0, of );
+                // limit the dy movement to the range [-radLimit, radLimit]
+                // so that we can't "jump" to the other side of the poles
+                // with a rapid mouse movement
+                dy = Math.max( Math.min( dy / 10.0, radLimit ), -radLimit );
+                Matrix.makeRotate( -dy, 1.0, 0.0, 0.0, of );
                 Matrix.mult( of, r, r2 );
 
                 // test that the eye is not too up and not too down to not kill
@@ -297,7 +301,7 @@ define( [
                 Vec3.normalize( tmp, tmp );
 
                 var p = Vec3.dot( tmp, this._upz );
-                if ( Math.abs( p ) > 0.95 ) {
+                if ( Math.abs( p ) > DOT_LIMIT ) {
                     //discard rotation on y
                     Matrix.copy( r, this._rotation );
                     return;
@@ -355,7 +359,6 @@ define( [
 
         update: ( function () {
             var eye = [ 0.0, 0.0, 0.0 ];
-            var tmpDist = [ 0.0, 0.0, 0.0 ];
             return function ( nv ) {
                 var t = nv.getFrameStamp().getSimulationTime();
                 if ( this._lastUpdate === undefined ) {
@@ -392,16 +395,12 @@ define( [
                 // Matrix.preMult( this._rotBase, this._rotation );
                 // Matrix.inverse( this._rotBase, this._inverseMatrix );
 
-                tmpDist[ 1 ] = distance;
-                Matrix.transformVec3( this._inverseMatrix, tmpDist, eye );
+                Vec3.set( 0.0, distance, 0.0, eye );
+                Matrix.transformVec3( this._inverseMatrix, eye, eye );
 
                 Matrix.makeLookAt( Vec3.add( target, eye, eye ), target, this._upz, this._inverseMatrix );
             };
-        } )(),
-
-        getInverseMatrix: function () {
-            return this._inverseMatrix;
-        }
+        } )()
     } );
 
     ( function ( module ) {

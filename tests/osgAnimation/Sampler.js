@@ -1,15 +1,18 @@
 define( [
+    'qunit',
     'tests/mockup/mockup',
     'osgAnimation/Sampler',
     'osgAnimation/Keyframe',
     'osgAnimation/Interpolator'
-], function ( mockup, Sampler, Keyframe, Interpolator ) {
+], function ( QUnit, mockup, Sampler, Keyframe, Interpolator ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osgAnimation' );
+        QUnit.module( 'osgAnimation' );
 
-        test( 'Sampler', function () {
+        QUnit.test( 'Sampler', function () {
             var keys = [];
             keys.push( Keyframe.createVec3Keyframe( 0.1, [ 1, 1, 1 ] ) );
             keys.push( Keyframe.createVec3Keyframe( 1, [ 0, 0, 0 ] ) );
@@ -24,7 +27,7 @@ define( [
                 'key': 0
             };
             sampler.getValueAt( 1.0, result );
-            ok( mockup.check_near( result.value, [ 0.0, 0.0, 0.0 ] ), 'Check value when time == 1.0' );
+            ok( mockup.checkNear( result.value, [ 0.0, 0.0, 0.0 ] ), 'Check value when time == 1.0' );
 
             sampler.setKeyframes( [] );
             ok( sampler.getStartTime() === undefined, 'Check Start Time without keyframes' );

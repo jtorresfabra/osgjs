@@ -1,16 +1,21 @@
 define( [
+    'qunit',
     'osg/Camera',
     'osg/Matrix',
     'osg/Node',
     'osg/Shape',
     'osg/Viewport',
-    'osgShadow/ShadowedScene', 'osgUtil/IntersectionVisitor',
+    'osgShadow/ShadowedScene',
+    'osgUtil/IntersectionVisitor',
     'tests/mockup/mockup',
-], function ( Camera, Matrix, Node, Shape, Viewport, ShadowedScene, IntersectionVisitor, mockup ) {
-    return function () {
-        module( 'osgShadow' );
+], function ( QUnit, Camera, Matrix, Node, Shape, Viewport, ShadowedScene, IntersectionVisitor, mockup ) {
 
-        test( 'ShadowedScene', function () {
+    'use strict';
+
+    return function () {
+        QUnit.module( 'osgShadow' );
+
+        QUnit.test( 'ShadowedScene', function () {
 
             var pShadow = new ShadowedScene();
             ok( pShadow.children.length === 0, 'number of children must be 0' );
@@ -38,7 +43,7 @@ define( [
             }
         };
 
-        test( 'IntersectionVisitor with 1 camera', function () {
+        QUnit.test( 'IntersectionVisitor with 1 camera', function () {
 
             var camera = new Camera();
             camera.setViewport( new Viewport() );
@@ -56,7 +61,7 @@ define( [
             iv.setIntersector( di );
             camera.accept( iv );
 
-            ok( mockup[ 'check_near' ]( di.stackTransforms[ 0 ], [ 0.1536, -0.1152, -9.8002 ], 0.001 ), 'check end transform point' );
+            ok( mockup.checkNear( di.stackTransforms[ 0 ], [ 0.1536, -0.1152, -9.8002 ], 0.001 ), 'check end transform point' );
         } );
     };
 } );

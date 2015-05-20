@@ -1,19 +1,21 @@
 define( [
-    'vendors/q',
+    'qunit',
+    'q',
     'tests/mockup/mockup',
     'osgAnimation/BasicAnimationManager',
     'osg/Utils',
     'osg/NodeVisitor',
     'osgDB/ReaderParser',
-    'osgAnimation/LinkVisitor',
-    'osg/Notify'
-], function ( Q, mockup, BasicAnimationManager, MACROUTILS, NodeVisitor, ReaderParser, LinkVisitor, Notify ) {
+    'osgAnimation/LinkVisitor'
+], function ( QUnit, Q, mockup, BasicAnimationManager, MACROUTILS, NodeVisitor, ReaderParser, LinkVisitor ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osgAnimation' );
+        QUnit.module( 'osgAnimation' );
 
-        asyncTest( 'BasicAnimationManager', function () {
+        QUnit.asyncTest( 'BasicAnimationManager', function () {
             var tree = {
                 'Generator': 'OpenSceneGraph 3.1.0',
                 'Version': 1,
@@ -194,7 +196,7 @@ define( [
                     animationManager.updateManager( 0.5 );
                     //Notify.log( 'value ' + animationManager._targets[ 0 ].getValue() );
                     animationManager.updateManager( 1.0 );
-                    ok( mockup.check_near( animationManager._targets[ 0 ].getValue(), [ 1.085831578947368, 0, 0 ] ), 'Check animation loop result' );
+                    ok( mockup.checkNear( animationManager._targets[ 0 ].getValue(), [ 1.085831578947368, 0, 0 ] ), 'Check animation loop result' );
 
                     animationManager.stopAnimation( 'Cube' );
                     animationManager.updateManager( 2.0 );
@@ -206,7 +208,7 @@ define( [
                     //Notify.log( 'value ' + animationManager._targets[ 0 ].getValue() );
                     animationManager.updateManager( 3.0 );
                     ok( animationManager.isPlaying( 'Cube' ), false, 'Check animation is not active' );
-                    ok( mockup.check_near( animationManager._targets[ 0 ].getValue(), [ 2.6797789473684217, 0, 0 ] ), 'Check animation once result' );
+                    ok( mockup.checkNear( animationManager._targets[ 0 ].getValue(), [ 2.6797789473684217, 0, 0 ] ), 'Check animation once result' );
                     start();
                 } );
             } )();

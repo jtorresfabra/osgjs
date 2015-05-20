@@ -57,13 +57,13 @@ define( [
         }
     } );
 
-    var ReleaseVisitor = function ( gl ) {
+    var ReleaseVisitor = function () {
         NodeVisitor.call( this, NodeVisitor.TRAVERSE_ALL_CHILDREN );
-        this.gl = gl;
     };
     ReleaseVisitor.prototype = MACROUTILS.objectInherit( NodeVisitor.prototype, {
         apply: function ( node ) {
-            node.releaseGLObjects( this.gl );
+            // mark GLResources in nodes to be released
+            node.releaseGLObjects();
             this.traverse( node );
         }
     } );
@@ -149,7 +149,7 @@ define( [
             this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
         },
 
-        executeProgressCallback: function() {
+        executeProgressCallback: function () {
             if ( this._pendingRequests.length > 0 || this._pendingNodes.length > 0 ) {
                 this._progressCallback( this._pendingRequests.length + this._downloadingRequestsNumber, this._pendingNodes.length );
                 this._lastCB = false;
@@ -185,10 +185,10 @@ define( [
             var elapsedTime = 0.0;
             var beginTime = Timer.instance().tick();
             this._pendingNodes.sort( function ( r1, r2 ) {
-                    return r2._timeStamp - r1._timeStamp;
+                return r2._timeStamp - r1._timeStamp;
             } );
 
-            for (var i = 0; i< this._pendingNodes.length; i++ ) {
+            for ( var i = 0; i < this._pendingNodes.length; i++ ) {
                 if ( elapsedTime > availableTime ) return 0.0;
 
                 var request = this._pendingNodes.shift();
@@ -245,7 +245,7 @@ define( [
             return dbrequest;
         },
 
-        takeRequests: function ( ) {
+        takeRequests: function () {
             if ( this._pendingRequests.length ) {
                 var numRequests = Math.min( this._maxRequestsPerFrame, this._pendingRequests.length );
                 this._pendingRequests.sort( function ( r1, r2 ) {
@@ -320,7 +320,7 @@ define( [
             return defer.promise;
         },
 
-        releaseGLExpiredSubgraphs: function ( gl, availableTime ) {
+        releaseGLExpiredSubgraphs: function ( availableTime ) {
 
             if ( availableTime <= 0.0 ) return 0.0;
             // We need to test if we have time to flush
@@ -332,7 +332,7 @@ define( [
                 // If we don't have more time, break the loop.
                 if ( elapsedTime > availableTime ) return;
                 that._childrenToRemoveList.delete( node );
-                node.accept( new ReleaseVisitor( gl ) );
+                node.accept( new ReleaseVisitor() );
                 node.removeChildren();
                 node = null;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
@@ -368,23 +368,23 @@ define( [
             var expiredPagedLODVisitor = new ExpirePagedLODVisitor();
 
             this._activePagedLODList.forEach( function ( plod ) {
-                if ( elapsedTime > availableTime ) return;
-                if ( numToPrune < 0 ) return;
+                // Check if we have time, else return 0
+                if ( elapsedTime > availableTime ) return 0.0;
+                if ( numToPrune < 0 ) return availableTime;
                 // See if plod is still active, so we don't have to prune
-                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return;
+                if ( expiryFrame < plod.getFrameNumberOfLastTraversal() ) return availableTime;
                 expiredPagedLODVisitor.removeExpiredChildrenAndFindPagedLODs( plod, expiryTime, expiryFrame, removedChildren );
                 for ( var i = 0; i < expiredPagedLODVisitor._childrenList.length; i++ ) {
                     that._activePagedLODList.delete( expiredPagedLODVisitor._childrenList[ i ] );
                     numToPrune--;
                 }
                 // Add to the remove list all the childs deleted
-                for ( i = 0; i < removedChildren.length; i++ ){
+                for ( i = 0; i < removedChildren.length; i++ ) {
                     that._childrenToRemoveList.add( removedChildren[ i ] );
                 }
                 expiredPagedLODVisitor._childrenList.length = 0;
                 removedChildren.length = 0;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
-
             } );
             availableTime -= elapsedTime;
             return availableTime;

@@ -2,6 +2,8 @@ define( [
     'osg/Notify'
 ], function ( Notify ) {
 
+    'use strict';
+
     var OrbitManipulatorHammerController = function ( manipulator ) {
         this._manipulator = manipulator;
         this.init();
@@ -9,7 +11,7 @@ define( [
 
     OrbitManipulatorHammerController.prototype = {
         init: function () {
-            this._panFactorX = 0.5;
+            this._panFactorX = 1.0;
             this._panFactorY = -this._panFactorX;
 
             this._rotateFactorX = 0.6;
@@ -26,23 +28,32 @@ define( [
             this._eventProxy = proxy;
             var self = this;
             var hammer = proxy;
-
-            var computeTouches = function ( gesture ) {
-                if ( gesture.touches !== undefined )
-                    return gesture.touches.length;
+            var computeTouches = function ( event ) {
+                if ( event.pointers !== undefined )
+                    return event.pointers.length;
                 return 1; // mouse
             };
 
             var dragCB = function ( ev ) {
                 return 'touches ' + computeTouches( ev ) + ' distance ' + ev.distance + ' x ' + ev.deltaX + ' y ' + ev.deltaY;
             };
+            // Set a minimal thresold on pinch event, to be detected after pan
+            hammer.get( 'pinch' ).set( {
+                threshold: 0.1
+            } );
+            // Let the pan be detected with two fingers.
+            hammer.get( 'pan' ).set( {
+                threshold: 0,
+                pointers: 0
+            } );
+            hammer.get( 'pinch' ).recognizeWith( hammer.get( 'pan' ) );
 
-            hammer.on( 'dragstart', function ( event ) {
+            this._cbPanStart = function ( event ) {
                 var manipulator = self._manipulator;
                 if ( !manipulator || self._transformStarted ) {
                     return;
                 }
-                var gesture = event.gesture;
+                var gesture = event;
                 if ( computeTouches( gesture ) === 2 ) {
                     self._pan = true;
                 }
@@ -50,15 +61,15 @@ define( [
                 self._dragStarted = true;
                 if ( self._pan ) {
                     manipulator.getPanInterpolator().reset();
-                    manipulator.getPanInterpolator().set( gesture.center.pageX * self._panFactorX, gesture.center.pageY * self._panFactorY );
+                    manipulator.getPanInterpolator().set( event.center.x * self._panFactorX, event.center.y * self._panFactorY );
                 } else {
                     manipulator.getRotateInterpolator().reset();
-                    manipulator.getRotateInterpolator().set( gesture.center.pageX * self._rotateFactorX, gesture.center.pageY * self._rotateFactorY );
+                    manipulator.getRotateInterpolator().set( event.center.x * self._rotateFactorX, event.center.y * self._rotateFactorY );
                 }
                 Notify.debug( 'drag start, ' + dragCB( gesture ) );
-            } );
+            };
 
-            hammer.on( 'drag', function ( event ) {
+            this._cbPanMove = function ( event ) {
                 var manipulator = self._manipulator;
                 if ( !manipulator ) {
                     return;
@@ -66,77 +77,78 @@ define( [
                 if ( !self._dragStarted ) {
                     return;
                 }
-                if ( self._transformStarted ) {
-                    self._dragStarted = false;
-                    return;
-                }
-
-                var gesture = event.gesture;
+                var gesture = event;
                 if ( self._pan ) {
-
-                    // if a pan started and we release one finger,
-                    // we dont take care of the those event
-                    if ( computeTouches( gesture ) !== 2 )
-                        return;
-
-                    manipulator.getPanInterpolator().setTarget( gesture.center.pageX * self._panFactorX, gesture.center.pageY * self._panFactorY );
-                    Notify.debug( 'pad, ' + dragCB( gesture ) );
+                    manipulator.getPanInterpolator().setTarget( event.center.x * self._panFactorX, event.center.y * self._panFactorY );
+                    Notify.debug( 'pan, ' + dragCB( gesture ) );
                 } else {
                     manipulator.getRotateInterpolator().setDelay( self._delay );
-                    manipulator.getRotateInterpolator().setTarget( gesture.center.pageX * self._rotateFactorX, gesture.center.pageY * self._rotateFactorY );
+                    manipulator.getRotateInterpolator().setTarget( event.center.x * self._rotateFactorX, event.center.y * self._rotateFactorY );
                     Notify.debug( 'rotate, ' + dragCB( gesture ) );
                 }
-            } );
-            hammer.on( 'dragend', function ( event ) {
+            };
+
+            this._cbPanEnd = function ( event ) {
                 var manipulator = self._manipulator;
                 if ( !manipulator || !self._dragStarted ) {
                     return;
                 }
                 self._dragStarted = false;
-                var gesture = event.gesture;
+                var gesture = event;
                 self._pan = false;
                 Notify.debug( 'drag end, ' + dragCB( gesture ) );
-            } );
+            };
 
             var toucheScale;
-            hammer.on( 'transformstart', function ( event ) {
+            this._cbPinchStart = function ( event ) {
                 var manipulator = self._manipulator;
                 if ( !manipulator ) {
                     return;
                 }
                 self._transformStarted = true;
-                var gesture = event.gesture;
+                var gesture = event;
 
                 toucheScale = gesture.scale;
-                var scale = gesture.scale;
                 manipulator.getZoomInterpolator().reset();
-                manipulator.getZoomInterpolator().set( gesture.scale );
-
-                Notify.debug( 'transform start ' + gesture.scale + ' ' + scale );
+                manipulator.getZoomInterpolator().set( toucheScale );
                 event.preventDefault();
-                hammer.options.drag = false;
-            } );
-            hammer.on( 'transformend', function ( event ) {
-                self._transformStarted = false;
-                Notify.debug( 'transform end ' + event.gesture.scale );
-                hammer.options.drag = true;
+                Notify.debug( 'zoom start, ' + dragCB( gesture ) );
+            };
 
-            } );
-            hammer.on( 'transform', function ( event ) {
+            this._cbPinchEnd = function ( event ) {
+                self._transformStarted = false;
+                Notify.debug( 'zoom end, ' + dragCB( event ) );
+            };
+
+            this._cbPinchInOut = function ( event ) {
                 var manipulator = self._manipulator;
                 if ( !manipulator || !self._transformStarted ) {
                     return;
                 }
-
-                var gesture = event.gesture;
-
+                var gesture = event;
                 var scale = ( gesture.scale - toucheScale ) * self._zoomFactor;
                 toucheScale = gesture.scale;
                 var target = manipulator.getZoomInterpolator().getTarget()[ 0 ];
                 manipulator.getZoomInterpolator().setTarget( target - scale );
-                Notify.debug( 'transform ' + gesture.scale + ' ' + ( target - scale ) );
-            } );
+                Notify.debug( 'zoom, ' + dragCB( gesture ) );
+            };
 
+            hammer.on( 'panstart ', this._cbPanStart );
+            hammer.on( 'panmove', this._cbPanMove );
+            hammer.on( 'panend', this._cbPanEnd );
+            hammer.on( 'pinchstart', this._cbPinchStart );
+            hammer.on( 'pinchend', this._cbPinchEnd );
+            hammer.on( 'pinchin pinchout', this._cbPinchInOut );
+        },
+        removeEventProxy: function ( proxy ) {
+            if ( !proxy || !this._eventProxy )
+                return;
+            proxy.off( 'panstart ', this._cbPanStart );
+            proxy.off( 'panmove', this._cbPanMove );
+            proxy.off( 'panend', this._cbPanEnd );
+            proxy.off( 'pinchstart', this._cbPinchStart );
+            proxy.off( 'pinchend', this._cbPinchEnd );
+            proxy.off( 'pinchin pinchout', this._cbPinchInOut );
         },
         setManipulator: function ( manipulator ) {
             this._manipulator = manipulator;
