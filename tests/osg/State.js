@@ -1,4 +1,5 @@
 define( [
+    'qunit',
     'osg/State',
     'osg/StateSet',
     'osg/Material',
@@ -6,13 +7,15 @@ define( [
     'osg/Texture',
     'osgShader/ShaderGeneratorProxy',
     'tests/mockup/mockup'
-], function ( State, StateSet, Material, StateAttribute, Texture, ShaderGeneratorProxy, mockup ) {
+], function ( QUnit, State, StateSet, Material, StateAttribute, Texture, ShaderGeneratorProxy, mockup ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osg' );
+        QUnit.module( 'osg' );
 
-        test( 'State', function () {
+        QUnit.test( 'State', function () {
 
             ( function () {
                 var state = new State( new ShaderGeneratorProxy() );
@@ -32,15 +35,39 @@ define( [
             } )();
         } );
 
+        QUnit.test( 'State setGlobalDefaultTextureAttribute', function () {
 
-        test( 'State applyStateSet', function () {
+            var state = new State( new ShaderGeneratorProxy() );
+
+            var texture = new Texture();
+            state.setGlobalDefaultTextureAttribute( 0, texture );
+
+            equal( state.getGlobalDefaultTextureAttribute( 0, 'Texture' ), texture, 'check texture object' );
+
+        } );
+
+        QUnit.test( 'State applyStateSet', function () {
 
             ( function () {
                 var state = new State( new ShaderGeneratorProxy() );
                 var fakeRenderer = mockup.createFakeRenderer();
                 var id = 0;
-                fakeRenderer.createProgram = function() { return id++; };
-                fakeRenderer.getProgramParameter = function() { return true; };
+                fakeRenderer.createProgram = function () {
+                    return id++;
+                };
+                fakeRenderer.getProgramParameter = function () {
+                    return true;
+                };
+
+                var textureBindCall = new Map();
+
+                fakeRenderer.bindTexture = function ( target, texture ) {
+                    var value = textureBindCall.get( texture );
+                    if ( value === undefined )
+                        value = 0;
+                    value++;
+                    textureBindCall.set( texture, value );
+                };
                 state.setGraphicContext( fakeRenderer );
 
                 var stateSet0 = new StateSet();
@@ -48,7 +75,19 @@ define( [
                 var stateSet2 = new StateSet();
 
                 stateSet0.setAttributeAndModes( new Material() );
-                stateSet1.setTextureAttributeAndModes( 0, new Texture() );
+
+                var texture0 = new Texture();
+                texture0.setName('My name is 0');
+                texture0.setTextureSize(1,1);
+                texture0._textureObject = {
+                    bind: function ( gl ) {
+                        gl.bindTexture( 0, 1 );
+                    }
+                };
+
+                stateSet1.setTextureAttributeAndModes( 0, texture0 );
+
+                stateSet2.setTextureAttributeAndModes( 0, texture0 );
                 stateSet2.setTextureAttributeAndModes( 1, new Texture() );
 
 
@@ -57,11 +96,14 @@ define( [
                 state.applyStateSet( stateSet2 );
 
                 equal( state.getStateSetStackSize(), 1, 'check stateSet stack length' );
-                notEqual( state.getLastProgramApplied(), undefined, 'check last program applied' );
+                QUnit.notEqual( state.getLastProgramApplied(), undefined, 'check last program applied' );
                 equal( state.attributeMap.Program.values().length, 0, 'check program stack length' );
+
+                // check that texture 0 is applied only once
+                equal( textureBindCall.get(1), 1, 'check that texture 0 is applied only once');
+
             } )();
         } );
-
 
     };
 } );

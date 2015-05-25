@@ -29,6 +29,9 @@ examples/vendors/Require.js
 examples/vendors/es5-shim.js
 examples/vendors/es6-shim.js
 examples/vendors/hammer.js
+<<<<<<< HEAD
 sources/vendors
 examples/vendors/require/text.js
+=======
+>>>>>>> 739ac731c8293f7cf2bdc3151613796750180748
 sources/version.js

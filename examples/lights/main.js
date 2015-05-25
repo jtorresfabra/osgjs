@@ -194,6 +194,7 @@
 
             var matrixTranslate = osg.Matrix.create();
             osg.Matrix.makeTranslate( 0, 0, 10, matrixTranslate );
+<<<<<<< HEAD
 
             var matrixRotate = osg.Matrix.create();
             osg.Matrix.makeRotate( Math.PI / 4, 1, 0, 0, matrixRotate );
@@ -232,9 +233,11 @@
 
             var matrixTranslate = osg.Matrix.create();
             osg.Matrix.makeTranslate( 0, 0, 10, matrixTranslate );
+=======
+>>>>>>> 739ac731c8293f7cf2bdc3151613796750180748
 
             var matrixRotate = osg.Matrix.create();
-            osg.Matrix.makeRotate( Math.PI / 4, 1, 0, 0, matrixRotate );
+            osg.Matrix.makeRotate( -Math.PI / 4, 1, 0, 0, matrixRotate );
 
             osg.Matrix.mult( matrixRotate, matrixTranslate, lightTransform.getMatrix() );
 
@@ -251,6 +254,47 @@
             return root;
         },
 
+<<<<<<< HEAD
+=======
+
+        createHemiLight: function ( x, y, z ) {
+
+            var root = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( x, y, z, root.getMatrix() );
+
+            var ls = new osg.LightSource();
+
+            var light = new osg.Light( 3 );
+            light.setLightAsHemi();
+            this._hemiLight = light;
+
+            ls.setLight( light );
+            this.updateHemi();
+
+            var lightTransform = new osg.MatrixTransform();
+
+            var matrixTranslate = osg.Matrix.create();
+            osg.Matrix.makeTranslate( 0, 0, 10, matrixTranslate );
+
+            var matrixRotate = osg.Matrix.create();
+            osg.Matrix.makeRotate( -Math.PI / 4, 1, 0, 0, matrixRotate );
+
+            osg.Matrix.mult( matrixRotate, matrixTranslate, lightTransform.getMatrix() );
+
+            lightTransform.addChild( ls );
+
+            var lightGeometry = osg.createTexturedBoxGeometry( 0, 0, 0,
+                1, 1, 1 );
+
+            lightTransform.addChild( lightGeometry );
+
+            root.addChild( this.createPlane() );
+            root.addChild( lightTransform );
+
+            return root;
+        },
+
+>>>>>>> 739ac731c8293f7cf2bdc3151613796750180748
         createSpotLight: function ( x, y, z ) {
 
             var root = new osg.MatrixTransform();
@@ -271,7 +315,7 @@
             osg.Matrix.makeTranslate( 0, 0, 10, matrixTranslate );
 
             var matrixRotate = osg.Matrix.create();
-            osg.Matrix.makeRotate( Math.PI / 4, 1, 0, 0, matrixRotate );
+            osg.Matrix.makeRotate( -Math.PI / 4, 1, 0, 0, matrixRotate );
 
             osg.Matrix.mult( matrixRotate, matrixTranslate, lightTransform.getMatrix() );
 
@@ -324,7 +368,11 @@
             if ( !this._model ) {
 
                 this._model = new osg.MatrixTransform();
+<<<<<<< HEAD
                 osg.Matrix.makeRotate( Math.PI, 0, 0, 1, this._model.getMatrix() );
+=======
+                osg.Matrix.makeRotate( -Math.PI, 0, 0, 1, this._model.getMatrix() );
+>>>>>>> 739ac731c8293f7cf2bdc3151613796750180748
                 var request = osgDB.readNodeURL( '../media/models/material-test/file.osgjs' );
 
                 // copy tex coord 0 to tex coord1 for multi texture
@@ -335,7 +383,11 @@
             }
 
             var node = new osg.MatrixTransform();
+<<<<<<< HEAD
             var rotate = osg.Matrix.makeRotate( Math.PI, 0, 0, 1, osg.Matrix.create() );
+=======
+            var rotate = osg.Matrix.makeRotate( -Math.PI, 0, 0, 1, osg.Matrix.create() );
+>>>>>>> 739ac731c8293f7cf2bdc3151613796750180748
             var scale = osg.Matrix.makeScale( 0.1, 0.1, 0.1, osg.Matrix.create() );
             osg.Matrix.mult( scale, rotate, node.getMatrix() );
             node.addChild( this._model );

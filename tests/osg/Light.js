@@ -1,4 +1,5 @@
 define( [
+    'qunit',
     'tests/mockup/mockup',
     'osg/Light',
     'osgViewer/Viewer',
@@ -8,14 +9,15 @@ define( [
     'osg/RenderStage',
     'osg/StateGraph',
     'osg/Matrix'
-], function ( mockup, Light, Viewer, Shape, Node, CullVisitor, RenderStage, StateGraph, Matrix ) {
+], function ( QUnit, mockup, Light, Viewer, Shape, Node, CullVisitor, RenderStage, StateGraph, Matrix ) {
+
     'use strict';
 
     return function () {
 
-        module( 'osg' );
+        QUnit.module( 'osg' );
 
-        test( 'Light', function () {
+        QUnit.test( 'Light', function () {
 
             ( function () {
 
@@ -24,7 +26,7 @@ define( [
 
                 l0.setLightAsPoint();
                 deepEqual( l0.getPosition(), [ 0, 0, 0, 1 ] );
-                equal( l0.getSpotCutoff(), 180);
+                equal( l0.getSpotCutoff(), 180 );
                 equal( l0.getLightType(), Light.POINT );
 
                 l0.setLightAsDirection();
@@ -34,7 +36,7 @@ define( [
                 l0.setLightAsSpot();
                 deepEqual( l0.getPosition(), [ 0, 0, 0, 1 ] );
                 deepEqual( l0.getDirection(), [ 0, 0, -1 ] );
-                equal( l0.getSpotCutoff(), 90);
+                equal( l0.getSpotCutoff(), 90 );
                 equal( l0.getLightType(), Light.SPOT );
 
                 deepEqual( l0.getAmbient(), [ 0.2, 0.2, 0.2, 1 ] );
@@ -42,9 +44,9 @@ define( [
                 deepEqual( l0.getSpecular(), [ 0.2, 0.2, 0.2, 1 ] );
 
 
-                equal( l0.getConstantAttenuation(), 1);
-                equal( l0.getLinearAttenuation(), 0);
-                equal( l0.getQuadraticAttenuation(), 0);
+                equal( l0.getConstantAttenuation(), 1 );
+                equal( l0.getLinearAttenuation(), 0 );
+                equal( l0.getQuadraticAttenuation(), 0 );
 
 
             } )();
@@ -69,9 +71,15 @@ define( [
                 var state = viewer.getState();
 
                 var fakeRenderer = mockup.createFakeRenderer();
-                fakeRenderer.validateProgram = function() { return true; };
-                fakeRenderer.getProgramParameter = function() { return true; };
-                fakeRenderer.isContextLost = function() { return false; };
+                fakeRenderer.validateProgram = function () {
+                    return true;
+                };
+                fakeRenderer.getProgramParameter = function () {
+                    return true;
+                };
+                fakeRenderer.isContextLost = function () {
+                    return false;
+                };
                 state.setGraphicContext( fakeRenderer );
 
                 viewer.setSceneData( q );

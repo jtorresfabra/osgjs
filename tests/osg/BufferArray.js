@@ -1,13 +1,18 @@
 define( [
+    'qunit',
     'tests/mockup/mockup',
-    'osg/BufferArray'
-], function ( mockup, BufferArray ) {
+    'osg/BufferArray',
+    'osgShader/ShaderGeneratorProxy',
+    'osg/State'
+], function ( QUnit, mockup, BufferArray, ShaderGeneratorProxy, State ) {
+
+    'use strict';
 
     return function () {
 
-        module( 'osg' );
+        QUnit.module( 'osg' );
 
-        test( 'BufferArray', function () {
+        QUnit.test( 'BufferArray', function () {
 
             ( function () {
                 var gl = mockup.createFakeRenderer();
@@ -22,7 +27,7 @@ define( [
                 var b = new BufferArray( BufferArray.ARRAY_BUFFER, content, 3 );
                 b.bind( gl );
                 ok( b._buffer !== undefined, 'Check we created gl buffer' );
-                b.releaseGLObjects( gl );
+                b.releaseGLObjects();
                 ok( b._buffer === undefined, 'Check we released gl buffer' );
             } )();
         } );

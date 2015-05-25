@@ -30,7 +30,8 @@
             'model': 'material-test',
             'shadowProjection': 'fov',
             'fov': 50,
-            'kernelSizePCF': '4Band(4texFetch)',
+            'kernelSizePCF': '1Tap(4texFetch)',
+            'fakePCF': false,
             'exponent': 80.0,
             'exponent1': 0.33,
 
@@ -46,7 +47,7 @@
             '_spotCutoff': 25,
             '_spotBlend': 0.3,
             '_constantAttenuation': 0.0,
-            '_linearAttenuation': 0.005,
+            '_linearAttenuation': 0.001,
             '_quadraticAttenuation': 0.0,
             'exampleObj': this,
             'shadowStatic': false,
@@ -136,6 +137,7 @@
         this._previousFrustumTest = this._config[ 'frustumTest' ];
         this._previousKernelSizePCF = this._config[ 'kernelSizePCF' ];
         this._previousDisable = this._config[ 'disableShadows' ];
+        this._fakePCF = this._config[ 'fakePCF' ];
         this._debugOtherTechniques = false;
         this._debugFrustum = false;
         this._debugPrefilter = false;
@@ -332,8 +334,8 @@
             // shaders has to have under max varying decl
             // max = this._maxVaryings -1
             // usual shader is already 4 vertexColor, FragNormal, FragEye, FragTexcoord.
-            // each shadow is 2 more.
-            var maxLights = ~~( ( this._maxVaryings - 1 ) - 4 ) / 2.0;
+            // each shadow is 1 more vec4 per shadow
+            var maxLights = ~~( ( this._maxVaryings - 1 ) - 4 );
 
             controller = gui.add( this._config, 'lightNum', 1, maxLights ).step( 1 );
             controller.onChange( this.updateShadow.bind( this ) );
@@ -387,6 +389,10 @@
             var pcfFolder = gui.addFolder( 'PCF' );
             controller = pcfFolder.add( this._config, 'kernelSizePCF', osgShadow.ShadowSettings.kernelSizeList );
             controller.onChange( this.updateShadow.bind( this ) );
+
+            controller = pcfFolder.add( this._config, 'fakePCF' );
+            controller.onChange( this.updateShadow.bind( this ) );
+
 
             if ( this._debugOtherTechniques ) {
 
@@ -539,18 +545,18 @@
         updateLightsEnable: function () {
             var l, numLights = ~~( this._config[ 'lightNum' ] );
 
-            while ( this._maxVaryings < ( numLights * 2 + 4 ) ) {
+            while ( this._maxVaryings < ( numLights + 4 ) ) {
                 numLights--;
             }
             this._config[ 'lightNum' ] = numLights;
 
             for ( l = 0; l < this._lights.length; l++ )
-                this._lights[ l ].setEnable( false );
+                this._lights[ l ].setEnabled( false );
 
 
             if ( this._lights.length !== numLights ) {
 
-                var lightScale = 1.0 / numLights;
+                var lightScale = 1.0 / ( numLights + 4 );
 
                 var group = this._viewer.getSceneData();
 
@@ -581,7 +587,7 @@
 
 
             for ( l = 0; l < numLights; l++ )
-                this._lights[ l ].setEnable( true );
+                this._lights[ l ].setEnabled( true );
 
         },
 
@@ -590,7 +596,7 @@
             // remove all lights
             while ( l-- ) {
                 var st = this._shadowTechnique[ l ];
-                st.setEnable( !this._config[ 'shadowStatic' ] );
+                st.setEnabled( !this._config[ 'shadowStatic' ] );
             }
             if ( this._config[ 'shadowStatic' ] ) {
                 this._config[ 'lightSpeed' ] = '0.0';
@@ -700,7 +706,9 @@
             if ( this._previousTech !== this._config[ 'shadow' ] ) {
                 // technique change.
 
-                this._groundNode.setNodeMask( ~this._castsShadowTraversalMask );
+
+                this._groundNode.setNodeMask( ~( this._castsShadowBoundsTraversalMask | this._castsShadowTraversalMask ) );
+
                 switch ( this._config[ 'shadow' ] ) {
                 case 'ESM':
 
@@ -744,6 +752,7 @@
                 shadowSettings.exponent1 = this._config[ 'exponent1' ];
                 shadowSettings.epsilonVSM = this._config[ 'epsilonVSM' ];
                 shadowSettings.kernelSizePCF = this._config[ 'kernelSizePCF' ];
+                shadowSettings.fakePCF = this._config[ 'fakePCF' ];
             }
 
 
@@ -1046,6 +1055,7 @@
                 ground.getOrCreateStateSet().setTextureAttributeAndModes( 0, groundTex );
                 ground.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( osg.CullFace.DISABLE ), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE );
 
+                //ground.getOrCreateStateSet().setAttributeAndModes( new osg.BlendFunc( osg.BlendFunc.ONE, osg.BlendFunc.ONE_MINUS_SRC_ALPHA ) );
 
             } );
             var groundSubNode;
@@ -1088,7 +1098,8 @@
             var mapres = parseInt( this._config[ 'textureSize' ] );
             shadowSettings.setTextureSize( mapres );
 
-            shadowSettings.setCastsShadowTraversalMask( this._castsShadowTraversalMask );
+            shadowSettings.setCastsShadowDrawTraversalMask( this._castsShadowDrawTraversalMask );
+            shadowSettings.setCastsShadowBoundsTraversalMask( this._castsShadowBoundsTraversalMask );
 
             shadowSettings.setAlgorithm( this._config[ 'shadow' ] );
 
@@ -1133,8 +1144,9 @@
             this._lightsSource.push( lightSource );
 
             /////////////////////////////
-            // add light to scene
-            group.addChild( lightNode );
+            // add light to shadowedscene
+            this._lightAndShadowScene.addChild( lightNode );
+            //group.addChild( lightNode );
             /////////////////////////////
 
             var lightNodemodel = osg.createAxisGeometry();
@@ -1142,7 +1154,7 @@
             lightNodemodelNode.addChild( lightNodemodel );
             this._debugLights.push( lightNodemodelNode );
             // light debug axis view
-            // totally indepedant scene tree than light
+            // totally independant scene tree than light
             /////////
             group.addChild( lightNodemodelNode );
             ///////////////////
@@ -1176,7 +1188,9 @@
         createScene: function () {
             var group = new osg.Node();
 
-            this._castsShadowTraversalMask = 0x2;
+            this._castsShadowDrawTraversalMask = 0x2;
+            this._castsShadowBoundsTraversalMask = 0x2;
+            //this._castsShadowBoundsTraversalMask = 0x4;
 
             this._shadowScene = this.createSceneCasterReceiver();
 
@@ -1187,9 +1201,14 @@
             // casting shadow
             // receiving shadow
             // any combination possible.
-            //this._shadowScene.setNodeMask( this._castsShadowTraversalMask );
+            //this._shadowScene.setNodeMask( this._castsShadowDrawTraversalMask );
             //this._shadowScene.setNodeMask( this._receivesShadowTraversalMask );
-            this._groundNode.setNodeMask( ~this._castsShadowTraversalMask );
+
+
+            this._cubeNode.setNodeMask( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask );
+            this._modelNode.setNodeMask( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask );
+            this._groundNode.setNodeMask( ~( this._castsShadowBoundsTraversalMask | this._castsShadowDrawTraversalMask ) );
+            //this._groundNode.setNodeMask( ~this._castsShadowBoundsTraversalMask );
 
             /////////////////////////
             shadowedScene.addChild( this._shadowScene );
@@ -1244,7 +1263,7 @@
             viewer.setLightingMode( osgViewer.View.LightingMode.NO_LIGHT );
             viewer.init();
 
-            viewer.getCamera().setComputeNearFar( false );
+            viewer.getCamera().setComputeNearFar( true );
 
             this._glContext = viewer.getGraphicContext();
 

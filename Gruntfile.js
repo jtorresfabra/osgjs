@@ -1,5 +1,10 @@
+'use strict';
+/* global process */
+
 var fs = require( 'fs' );
 var path = require( 'path' );
+
+var webpackConfig = require( './webpack.config.js' );
 
 var extend = require( 'extend' );
 var glob = require( 'glob' );
@@ -12,9 +17,7 @@ var jshintrc = JSON.parse( fs.readFileSync( './.jshintrc' ).toString() );
 var SOURCE_PATH = 'sources/';
 var BUILD_PATH = 'builds/';
 var DIST_PATH = path.join( BUILD_PATH, 'dist/' );
-var UTILS_PATH = 'tools/build/';
-
-
+var DOCS_PATH = path.join( BUILD_PATH, 'docs/' );
 
 // Utility functions
 //
@@ -63,33 +66,7 @@ var gruntTasks = {};
         options: {}
     };
 
-    gruntTasks.uglify = {
-        options: {}
-    };
-
-    gruntTasks.requirejs = {
-        options: {
-            //optimize: 'uglify2',
-            optimize: 'none',
-            //            generateSourceMaps: true,
-            //            useSourceUrl: true,
-            preserveLicenseComments: false,
-            findNestedDependencies: true,
-            optimizeAllPluginResources: true,
-            baseUrl: SOURCE_PATH
-
-        }
-    };
-
     gruntTasks.clean = {
-        options: {}
-    };
-
-    gruntTasks.requirejsconfiguration = {
-        options: {}
-    };
-
-    gruntTasks.watch = {
         options: {}
     };
 
@@ -111,6 +88,70 @@ var gruntTasks = {};
 
     // duck the camel. (case)
     gruntTasks[ 'wintersmith_compile' ] = {};
+
+} )();
+
+
+// ## Webpack
+//
+// Build OSGJS with webpack
+//
+( function () {
+
+    var webpack = require( 'webpack' );
+
+    var targets = {
+        build: {
+            entry: {
+                OSG: [ './sources/OSG.js' ],
+                tests: [ './tests/tests.js' ]
+            },
+            devtool: 'source-map'
+        },
+
+        buildrelease: {
+            devtool: null,
+            output: {
+                path: DIST_PATH,
+                filename: '[name].min.js',
+                libraryTarget: 'umd',
+                library: 'OSG'
+            },
+
+            // additional plugins for this specific mode
+            plugins: [
+                new webpack.optimize.UglifyJsPlugin( {
+                    sourceMap: false
+                } )
+            ]
+        },
+        docs: {
+            entry: './sources/OSG.js',
+            output: {
+                path: DOCS_PATH,
+                filename: 'OSG.js'
+            }
+        }
+    };
+
+
+    gruntTasks.webpack = {
+        options: webpackConfig,
+        build: targets.build,
+        buildrelease: targets.buildrelease,
+        docs: targets.docs,
+        watch: {
+            entry: targets.build.entry,
+            devtool: targets.build.devtool,
+
+            // use webpacks watcher
+            // You need to keep the grunt process alive
+            watch: true,
+            keepalive: true
+
+        }
+    };
+
 
 } )();
 
@@ -150,23 +191,6 @@ var gruntTasks = {};
 } )();
 
 
-// ## Watch
-
-( function () {
-
-    gruntTasks.watch.src = {
-        files: [
-            'sources/*.js',
-            'sources/**/*.js',
-            'sources/*.glsl',
-            'sources/**/*.glsl'
-        ],
-        tasks: [ 'build:sources' ]
-    };
-
-} )();
-
-
 var generateVersionFile = function() {
     var pkg = JSON.parse( fs.readFileSync('package.json' ) );
     var content = [
@@ -182,40 +206,9 @@ var generateVersionFile = function() {
     fs.writeFileSync( path.join( SOURCE_PATH, 'version.js'), content.join('\n'));
 };
 
-
-// ## Require.js
-//
-( function () {
-
-    gruntTasks.requirejs.distSources = {
-        options: {
-            name: path.join( path.relative( SOURCE_PATH, UTILS_PATH ), 'almond' ),
-            out: path.join( DIST_PATH, 'OSG.js' ),
-            include: [ 'OSG' ],
-            paths: {
-                'q': 'vendors/q',
-                'hammer': 'vendors/hammer',
-                'leap': 'vendors/leap',
-                'jquery': 'vendors/jquery',
-                'text': 'vendors/require/text'
-            },
-            wrap: {
-                startFile: path.join( UTILS_PATH, 'wrap.start' ),
-                endFile: path.join( UTILS_PATH, 'wrap.end' )
-            }
-        }
-    };
-
-} )();
-
 // ## Clean
 //
 ( function () {
-
-    gruntTasks.clean.distAfterSourcesRjs = {
-        src: [ path.join( DIST_PATH, 'build.txt' ) ]
-    };
-
 
     gruntTasks.clean.staticWeb = {
         src: [ path.join( BUILD_PATH, 'web' ) ]
@@ -229,23 +222,9 @@ var generateVersionFile = function() {
 //
 ( function () {
 
-    // generate a requirejs without anything to build a docco docs
-    gruntTasks.requirejs.docsSources = {
-        options: {
-            out: path.join( BUILD_PATH, 'docs/OSG.js' ),
-            include: [ 'OSG' ],
-            paths: {
-                'q': 'vendors/q',
-                'hammer': 'vendors/hammer',
-                'leap': 'vendors/leap'
-            }
-        }
-    };
-
     gruntTasks.docco = {
         singleDoc: {
-            src: path.join( BUILD_PATH, 'docs/OSG.js' ),
-            //src:  find( SOURCE_PATH, '**/*.js' ).map( function ( path ) { return path.join( SOURCE_PATH, path ); } ),
+            src: path.join( DOCS_PATH, 'OSG.js' ),
             options: {
                 output: 'docs/annotated-source'
             }
@@ -345,14 +324,8 @@ var generateVersionFile = function() {
                 //Hammer:
                 {
                     cwd: './',
-                    src: 'examples/vendors/hammer-1.0.5.js',
+                    src: 'examples/vendors/hammer-2.0.4.js',
                     dest: 'examples/vendors/hammer.js'
-                },
-                //RequireTextBuild:
-                {
-                    cwd: './',
-                    src: 'sources/vendors/require/Text-2.0.12.js',
-                    dest: 'sources/vendors/require/text.js'
                 },
                 //Q:
                 {
@@ -528,9 +501,7 @@ module.exports = function ( grunt ) {
     grunt.loadNpmTasks( 'grunt-plato' );
     grunt.loadNpmTasks( 'grunt-contrib-jshint' );
     grunt.loadNpmTasks( 'grunt-contrib-copy' );
-    grunt.loadNpmTasks( 'grunt-contrib-requirejs' );
     grunt.loadNpmTasks( 'grunt-contrib-clean' );
-    grunt.loadNpmTasks( 'grunt-contrib-watch' );
 
     // windows not supporting link in git repo
     grunt.loadNpmTasks( 'grunt-copy-to' );
@@ -538,24 +509,22 @@ module.exports = function ( grunt ) {
     grunt.loadNpmTasks( 'grunt-wintersmith-compile' );
     grunt.loadNpmTasks( 'grunt-git' );
     grunt.loadNpmTasks( 'grunt-shell' );
+    grunt.loadNpmTasks( 'grunt-webpack' );
 
+    grunt.registerTask( 'watch', [ 'webpack:watch' ] );
     grunt.registerTask( 'check', [ 'jshint:self', 'jshint:sources' ] );
 
     grunt.registerTask( 'test', [ 'connect:server', 'qunit:all' ] );
 
-    grunt.registerTask( 'docs', [ 'requirejs:docsSources', 'docco' ] );
+    grunt.registerTask( 'docs', [ 'webpack:docs', 'docco' ] );
 
-    grunt.registerTask( 'build:sources:dist', [ 'requirejs:distSources', 'clean:distAfterSourcesRjs' ] );
-    grunt.registerTask( 'build:sources', [ 'build:sources:dist' ] );
-
-    grunt.registerTask( 'build:dist', [ 'build:sources:dist' ] );
-    grunt.registerTask( 'build', [ 'copyto', 'build:dist' ] );
+    grunt.registerTask( 'build', [ 'copyto', 'webpack:build' ] );
+    grunt.registerTask( 'build-release', [ 'copyto', 'webpack:buildrelease' ] );
 
     grunt.registerTask( 'default', [ 'check', 'build' ] );
     grunt.registerTask( 'serve', [ 'build', 'connect:dist:keepalive' ] );
     grunt.registerTask( 'website_only', [ 'clean:staticWeb', 'gitclone:staticWeb', 'copy:staticWeb', 'wintersmith_compile:build', 'shell:staticWeb', 'gitcommit:staticWeb', 'gitpush:staticWeb' ] );
     grunt.registerTask( 'website', [ 'default', 'docs', 'website_only' ] );
 
-//    grunt.registerTask( 'release', [ 'release:patch', 'build:sources:dist', 'release:patch' ] );
 
 };

@@ -47,9 +47,11 @@ define( [
             }
         },
         removeShadowTechnique: function ( technique ) {
+
             if ( this._shadowTechniques.length > 0 ) {
                 var idx = this._shadowTechniques.indexOf( technique );
                 if ( idx !== -1 ) {
+
                     if ( this._shadowTechniques[ idx ].valid() ) {
                         this._shadowTechniques[ idx ].cleanSceneGraph();
                     }
@@ -77,24 +79,8 @@ define( [
         },
         traverse: function ( nv ) {
 
-            var i, st, lt = this._shadowTechniques.length;
 
             if ( nv.getVisitorType() === NodeVisitor.UPDATE_VISITOR ) {
-
-                // update all shadow technics
-                for ( i = 0; i < lt; i++ ) {
-                    st = this._shadowTechniques[ i ];
-
-                    if ( st && st.valid() ) {
-
-                        if ( st.isDirty() ) // if dirty init shadow techniques
-
-                            st.init();
-
-                        if ( st.getEnable() )
-                            st.updateShadowTechnic( nv );
-                    }
-                }
 
                 // update the scene
                 this.nodeTraverse( nv );
@@ -106,12 +92,24 @@ define( [
                 // cull Shadowed Scene
                 this.cullShadowReceivingScene( nv );
 
+                var i, st, lt = this._shadowTechniques.length;
                 // cull Casters
                 for ( i = 0; i < lt; i++ ) {
                     st = this._shadowTechniques[ i ];
                     // dirty check for user playing with shadows inside update traverse
-                    if ( st && st.getEnable() && st.valid() && !st.isDirty() ) {
-                        st.cullShadowCasting( nv );
+                    if ( st && st.valid() ) {
+
+                        // those two checks
+                        // here
+                        // in case people update it from
+                        // any update/cull/callback
+                        if ( st.isDirty() )
+                            st.init();
+
+                        if ( st.isEnabled() || !st.isFilledOnce() ) {
+                            st.updateShadowTechnique( nv );
+                            st.cullShadowCasting( nv );
+                        }
                     }
                 }
 
