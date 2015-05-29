@@ -627,6 +627,23 @@ define( [
                 if ( device.update )
                     device.update( frameStamp );
             } );
+        },
+        setManipulator: function ( manipulator ) {
+            if ( this._manipulator )
+                this.removeEventProxy();
+            View.prototype.setManipulator.call( this, manipulator );
+        },
+        removeEventProxy: function () {
+            var list = this._eventProxy;
+            var keys = window.Object.keys( list );
+            keys.forEach( function ( key ) {
+                var device = list[ key ];
+                if ( device.remove )
+                    device.remove();
+            } );
+        },
+        getEventProxy: function () {
+            return this._eventProxy;
         }
 
     } );

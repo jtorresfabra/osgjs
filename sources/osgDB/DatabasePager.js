@@ -3,13 +3,13 @@
  */
 
 define( [
-    'q',
+    'bluebird',
     'osg/Utils',
     'osg/NodeVisitor',
     'osg/PagedLOD',
     'osg/Timer',
     'osg/Node'
-], function ( Q, MACROUTILS, NodeVisitor, PagedLOD, Timer, Node ) {
+], function ( P, MACROUTILS, NodeVisitor, PagedLOD, Timer, Node ) {
 
     'use strict';
     /**
@@ -309,7 +309,7 @@ define( [
 
             // Load from function
             if ( dbrequest._function !== undefined ) {
-                Q.when( this.loadNodeFromFunction( dbrequest._function, dbrequest._group ) ).then( function ( child ) {
+                this.loadNodeFromFunction( dbrequest._function, dbrequest._group ).then( function ( child ) {
                     that._downloadingRequestsNumber--;
                     dbrequest._loadedModel = child;
                     that._pendingNodes.push( dbrequest );
@@ -321,7 +321,7 @@ define( [
                 dbrequest._loadedModel = g;
                 that._pendingNodes.push( dbrequest );
                 var retrieveChild = function ( i ){
-                    Q.when( that.loadNodeFromURL( dbrequest, i ) ).then( function ( child ) {
+                    that.loadNodeFromURL( dbrequest, i ).then( function ( child ) {
                         // DEBUGSPHERE
                        //  var bbs = child.getBound();
                        //  var bs = Shape.createTexturedSphere( bbs.radius() );
@@ -357,16 +357,17 @@ define( [
 
         loadNodeFromFunction: function ( func, plod ) {
             // Need to call with pagedLOD as parent, to be able to have multiresolution structures.
-            var defer = Q.defer();
-            Q.when( ( func )( plod ) ).then( function ( child ) {
-                defer.resolve( child );
-            } );
-            return defer;
+            var promise = ( func )( plod );
+            // should func always return a promise ?
+            if ( !promise ) return P.reject();
+            if ( promise && promise.then ) return promise;
+            return P.resolve( promise );
         },
 
         loadNodeFromURL: function ( dbrequest, i ) {
             var ReaderParser = require( 'osgDB/ReaderParser' );
-            var defer = Q.defer();
+            
+            var defer = P.defer();
             var url = dbrequest._prefixurl + dbrequest._url[ i ];
             var options = ReaderParser.registry().getOptions();
 
@@ -374,13 +375,10 @@ define( [
             //var that = this;
             var readSceneGraph = function ( data ) {
 
-                ReaderParser.parseSceneGraph( data, options )
-                    .then( function ( child ) {
-                        defer.resolve( child );
-                       // Notify.log( 'loaded ' + url );
-                    } ).fail( function ( error ) {
-                        defer.reject( error );
-                    } );
+                ReaderParser.parseSceneGraph( data, options ).then( function ( child ) {
+                    defer.resolve( child );
+                    //Notify.log( 'loaded ' + url );
+                } ).catch( defer.reject.bind( defer ) );
             };
 
             options = MACROUTILS.objectMix( {}, options );
@@ -408,7 +406,7 @@ define( [
                     return readSceneGraph( data );
                 return true;
 
-            } ).fail( function ( ) {
+            } ).catch( function ( ) {
 
                 //console.log( 'cant get file ' + url + ' status ' + status );
                 defer.reject();
@@ -420,7 +418,7 @@ define( [
 
         requestFile: function ( url, options, dbrequest ) {
 
-            var defer = Q.defer();
+            var defer = P.defer();
 
             var req = new XMLHttpRequest();
             dbrequest._requests.push( req );

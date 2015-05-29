@@ -2,6 +2,8 @@ define( [
     'osg/Notify'
 ], function ( Notify ) {
 
+    'use strict';
+
     var OrbitManipulatorHammerController = function ( manipulator ) {
         this._manipulator = manipulator;
         this.init();
@@ -47,9 +49,9 @@ define( [
 
             hammer.get( 'pinch' ).recognizeWith( hammer.get( 'pan' ) );
 
-            hammer.on( 'panstart ', function ( event ) {
+            this._cbPanStart = function ( event ) {
                 var manipulator = self._manipulator;
-                if ( !manipulator || self._transformStarted ) {
+                if ( !manipulator || self._transformStarted || event.pointerType === 'mouse' ) {
                     return;
                 }
                 var gesture = event;
@@ -66,14 +68,11 @@ define( [
                     manipulator.getRotateInterpolator().set( event.center.x * self._rotateFactorX, event.center.y * self._rotateFactorY );
                 }
                 Notify.debug( 'drag start, ' + dragCB( gesture ) );
-            } );
+            };
 
-            hammer.on( 'panmove', function ( event ) {
+            this._cbPanMove = function ( event ) {
                 var manipulator = self._manipulator;
-                if ( !manipulator ) {
-                    return;
-                }
-                if ( !self._dragStarted ) {
+                if ( !manipulator || !self._dragStarted || event.pointerType === 'mouse' ) {
                     return;
                 }
                 var gesture = event;
@@ -85,24 +84,23 @@ define( [
                     manipulator.getRotateInterpolator().setTarget( event.center.x * self._rotateFactorX, event.center.y * self._rotateFactorY );
                     Notify.debug( 'rotate, ' + dragCB( gesture ) );
                 }
-            } );
+            };
 
-            hammer.on( 'panend', function ( event ) {
+            this._cbPanEnd = function ( event ) {
                 var manipulator = self._manipulator;
-                if ( !manipulator || !self._dragStarted ) {
+                if ( !manipulator || !self._dragStarted || event.pointerType === 'mouse' ) {
                     return;
                 }
                 self._dragStarted = false;
                 var gesture = event;
                 self._pan = false;
                 Notify.debug( 'drag end, ' + dragCB( gesture ) );
-            } );
+            };
 
             var toucheScale;
-
-            hammer.on( 'pinchstart', function ( event ) {
+            this._cbPinchStart = function ( event ) {
                 var manipulator = self._manipulator;
-                if ( !manipulator ) {
+                if ( !manipulator || event.pointerType === 'mouse' ) {
                     return;
                 }
                 self._transformStarted = true;
@@ -113,16 +111,19 @@ define( [
                 manipulator.getZoomInterpolator().set( toucheScale );
                 event.preventDefault();
                 Notify.debug( 'zoom start, ' + dragCB( gesture ) );
-            } );
+            };
 
-            hammer.on( 'pinchend', function ( event ) {
+            this._cbPinchEnd = function ( event ) {
+                if ( event.pointerType === 'mouse' ) {
+                    return;
+                }
                 self._transformStarted = false;
                 Notify.debug( 'zoom end, ' + dragCB( event ) );
-            } );
+            };
 
-            hammer.on( 'pinchin pinchout', function ( event ) {
+            this._cbPinchInOut = function ( event ) {
                 var manipulator = self._manipulator;
-                if ( !manipulator || !self._transformStarted ) {
+                if ( !manipulator || !self._transformStarted || event.pointerType === 'mouse' ) {
                     return;
                 }
                 var gesture = event;
@@ -131,8 +132,24 @@ define( [
                 var target = manipulator.getZoomInterpolator().getTarget()[ 0 ];
                 manipulator.getZoomInterpolator().setTarget( target - scale );
                 Notify.debug( 'zoom, ' + dragCB( gesture ) );
-            } );
+            };
 
+            hammer.on( 'panstart ', this._cbPanStart );
+            hammer.on( 'panmove', this._cbPanMove );
+            hammer.on( 'panend', this._cbPanEnd );
+            hammer.on( 'pinchstart', this._cbPinchStart );
+            hammer.on( 'pinchend', this._cbPinchEnd );
+            hammer.on( 'pinchin pinchout', this._cbPinchInOut );
+        },
+        removeEventProxy: function ( proxy ) {
+            if ( !proxy || !this._eventProxy )
+                return;
+            proxy.off( 'panstart ', this._cbPanStart );
+            proxy.off( 'panmove', this._cbPanMove );
+            proxy.off( 'panend', this._cbPanEnd );
+            proxy.off( 'pinchstart', this._cbPinchStart );
+            proxy.off( 'pinchend', this._cbPinchEnd );
+            proxy.off( 'pinchin pinchout', this._cbPinchInOut );
         },
         setManipulator: function ( manipulator ) {
             this._manipulator = manipulator;
