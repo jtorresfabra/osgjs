@@ -221,10 +221,7 @@ define( [
                             // compute priority from where abouts in the required range the distance falls.
                             var priority = ( this._range[ numChildren ][ 0 ] - requiredRange ) / ( this._range[ numChildren ][ 1 ] - this._range[ numChildren ][ 0 ] );
                             if ( this._rangeMode === Lod.PIXEL_SIZE_ON_SCREEN ) {
-                                Matrix.transformVec3( viewModel, zeroVector, eye );
-                                var distance = Vec3.distance( eye, this.getBound().center() );
-                                priority = distance;
-                                //priority = -priority;
+                                priority = -priority;
                             }
                             // Here we do the request
                             var group = visitor.nodePath[ visitor.nodePath.length - 1 ];
