@@ -22,6 +22,7 @@ define( [
         this._loading = false;
         this._progressCallback = undefined;
         this._lastCB = true;
+        this._doRequests = true;
         this._activePagedLODList = new Set();
         this._childrenToRemoveList = new Set();
         this._downloadingRequestsNumber = 0;
@@ -40,6 +41,7 @@ define( [
         this._timeStamp = 0.0;
         this._groupExpired = false;
         this._priority = 0.0;
+        this._finished = false;
     };
 
     var FindPagedLODsVisitor = function ( pagedLODList, frameNumber ) {
@@ -122,11 +124,20 @@ define( [
             this._pendingNodes = [];
             this._loading = false;
             this._lastCB = true;
+            this._doRequests = true;
             this._activePagedLODList.clear();
             this._childrenToRemoveList.clear();
             this._downloadingRequestsNumber = 0;
             this._maxRequestsPerFrame = 10;
             this._targetMaximumNumberOfPagedLOD = 75;
+        },
+
+        stopRequests: function () {
+            this._doRequests = false;
+        },
+
+        startRequests: function () {
+            this._doRequests = true;
         },
 
         updateSceneGraph: function ( frameStamp ) {
@@ -144,7 +155,7 @@ define( [
             // Remove expired nodes
             this.removeExpiredSubgraphs( frameStamp, 0.0025 );
             // Time to do the requests.
-            if ( !this._loading ) this.takeRequests();
+            this.takeRequests();
             // Add the loaded data to the graph
             this.addLoadedDataToSceneGraph( frameStamp, 0.005 );
         },
@@ -214,7 +225,7 @@ define( [
 
                     // Clean the request
                     request._loadedModel = undefined;
-                    request = undefined;
+                    //request = undefined;
 
                 }
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
@@ -235,6 +246,9 @@ define( [
         requestNodeFile: function ( func, url, node, timestamp, priority ) {
             // We don't need to determine if the dbrequest is in the queue
             // That is already done in the PagedLOD, so we just create the request
+            if ( url === '' && func === undefined ) return;
+            // Check
+            if ( !this._doRequests ) return undefined;
             var dbrequest = new DatabaseRequest();
             dbrequest._group = node;
             dbrequest._function = func;
@@ -292,6 +306,7 @@ define( [
                     dbrequest._loadedModel = child;
                     that._pendingNodes.push( dbrequest );
                     that._loading = false;
+                    dbrequest._finished = true;
                 } );
             }
         },
@@ -328,8 +343,8 @@ define( [
                 // If we don't have more time, break the loop.
                 if ( elapsedTime > availableTime ) return;
                 that._childrenToRemoveList.delete( node );
-                node.accept( new ReleaseVisitor() );
-                node.removeChildren();
+                node.removeChildren();                
+                node.accept( new ReleaseVisitor( ) );
                 node = null;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );

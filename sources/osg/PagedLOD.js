@@ -24,6 +24,8 @@ define( [
         this._centerMode = Lod.USER_DEFINED_CENTER;
         this._frameNumberOfLastTraversal = 0;
         this._databasePath = '';
+        /*Added for Novapoint*/
+        this._suffixURL = '';
     };
 
     /**
@@ -42,6 +44,11 @@ define( [
 
     /** @lends PagedLOD.prototype */
     PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Lod.prototype, {
+        /*Added for Novapoint*/
+        setSuffixURL: function ( suffixURL ) {
+            this._suffixURL = suffixURL;
+        },
+
         // Functions here
         setRange: function ( childNo, min, max ) {
             if ( childNo >= this._range.length ) {
@@ -215,12 +222,15 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
-                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
                                 if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined ) {
                                     this._perRangeDataList[ numChildren ].dbrequest._timeStamp = visitor.getFrameStamp().getSimulationTime();
                                     this._perRangeDataList[ numChildren ].dbrequest._priority = priority;
+                                } else {
+                                    // The DB request is undefined, so the DBPager was not accepting requests, we need to ask for the child again.
+                                    this._perRangeDataList[ numChildren ].loaded = false;
                                 }
                             }
                         }
