@@ -103,17 +103,33 @@ Input.prototype = {
         return this._defaultOptions.databasePath;
     },
 
-    computeURL: function ( url ) {
-
-        if ( typeof this._defaultOptions.prefixURL === 'string' &&
-            this._defaultOptions.prefixURL.length > 0 ) {
-
-            return this._defaultOptions.prefixURL + url;
-        }
-
-        return url;
+    //Added for Novapoint
+    setPagedLODSuffixURL: function ( suffix ) {
+       this._defaultOptions.plodSuffixURL = suffix;
+    },
+    getPagedLODSuffixURL: function () {
+       return this._defaultOptions.plodSuffixURL;
     },
 
+    computeURL: function ( url ) {
+
+       if ( typeof this._defaultOptions.prefixURL === 'string' &&
+                this._defaultOptions.prefixURL.length > 0 ) {
+
+                return this._defaultOptions.prefixURL + url;
+            }
+
+            return url;
+     },
+     //Added for Novapoint
+     computeBinaryURL: function ( url ) {
+        if ( typeof this._defaultOptions.prefixURL === 'string' &&
+           this._defaultOptions.plodPrefixURL.length > 0 ) {
+           return this._defaultOptions.databasePath + url;
+         }
+
+         return url;
+     },
 
     requestFile: function ( url, options ) {
 
@@ -249,7 +265,7 @@ Input.prototype = {
             return options.readNodeURL.call( this, url, options );
         }
 
-        url = this.computeURL( url );
+        url = this.computeBinaryURL( url );
 
         var defer = P.defer();
 
@@ -368,9 +384,9 @@ Input.prototype = {
             return result.buffer;
         }
 
+
         return binary;
     },
-
     readBinaryArrayURL: function ( url, options ) {
 
         if ( options === undefined ) {
@@ -381,7 +397,7 @@ Input.prototype = {
             return options.readBinaryArrayURL.call( this, url, options );
         }
 
-        url = this.computeURL( url );
+        url = this.computeBinaryURL( url );
 
 
         if ( this._identifierMap[ url ] !== undefined ) {
