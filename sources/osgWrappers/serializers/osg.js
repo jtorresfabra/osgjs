@@ -329,7 +329,7 @@ define( [
         // TODO: Check also if we have a path from json
         plod.setDatabasePath( input.getDatabasePath() );
         // Added for Novapoint
-        plod.setSuffixURL( input.getPagedLODSuffixURL());
+        plod.setSuffixURL( input.getPagedLODSuffixURL() );
 
         var queue = [];
         // For each url, create a function call and add it to the queue

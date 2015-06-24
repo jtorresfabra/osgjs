@@ -343,8 +343,8 @@ define( [
                 // If we don't have more time, break the loop.
                 if ( elapsedTime > availableTime ) return;
                 that._childrenToRemoveList.delete( node );
-                node.removeChildren();                
-                node.accept( new ReleaseVisitor( ) );
+                node.removeChildren();
+                node.accept( new ReleaseVisitor() );
                 node = null;
                 elapsedTime = Timer.instance().deltaS( beginTime, Timer.instance().tick() );
             } );
