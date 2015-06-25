@@ -121,7 +121,7 @@ define( [
 
 
             if ( typeof this._defaultOptions.prefixURL === 'string' &&
-                this._defaultOptions.plodPrefixURL.length > 0 ) {
+                this._defaultOptions.databasePath.length > 0 ) {
                 return this._defaultOptions.databasePath + url;
             }
 
