@@ -65,6 +65,9 @@ define( [
         setReadNodeURLCallback: function ( func ) {
             this._defaultOptions.readNodeURL = func;
         },
+        setReadBinaryArrayURLCallback: function ( func ) {
+            this._defaultOptions.readBinaryArrayURL = func;
+        },
         // used to override the type from pathname
         // typically if you want to create proxy object
         registerObject: function ( fullyQualifiedObjectname, constructor ) {
