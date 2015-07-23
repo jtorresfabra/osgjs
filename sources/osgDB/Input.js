@@ -65,6 +65,9 @@ define( [
         setReadNodeURLCallback: function ( func ) {
             this._defaultOptions.readNodeURL = func;
         },
+        setReadBinaryArrayURLCallback: function ( func ) {
+            this._defaultOptions.readBinaryArrayURL = func;
+        },
         // used to override the type from pathname
         // typically if you want to create proxy object
         registerObject: function ( fullyQualifiedObjectname, constructor ) {
@@ -95,6 +98,13 @@ define( [
         getDatabasePath: function () {
             return this._defaultOptions.databasePath;
         },
+        //Added for Novapoint
+        setPagedLODSuffixURL: function ( suffix ) {
+            this._defaultOptions.plodSuffixURL = suffix;
+        },
+        getPagedLODSuffixURL: function () {
+            return this._defaultOptions.plodSuffixURL;
+        },
 
         computeURL: function ( url ) {
 
@@ -102,6 +112,17 @@ define( [
                 this._defaultOptions.prefixURL.length > 0 ) {
 
                 return this._defaultOptions.prefixURL + url;
+            }
+
+            return url;
+        },
+        //Added for Novapoint
+        computeBinaryURL: function ( url ) {
+
+
+            if ( typeof this._defaultOptions.prefixURL === 'string' &&
+                this._defaultOptions.databasePath.length > 0 ) {
+                return this._defaultOptions.databasePath + url;
             }
 
             return url;
@@ -242,7 +263,7 @@ define( [
                 return options.readNodeURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
             var defer = P.defer();
 
@@ -374,7 +395,7 @@ define( [
                 return options.readBinaryArrayURL.call( this, url, options );
             }
 
-            url = this.computeURL( url );
+            url = this.computeBinaryURL( url );
 
 
             if ( this._identifierMap[ url ] !== undefined ) {

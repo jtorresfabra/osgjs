@@ -25,6 +25,9 @@ define( [
         this._frameNumberOfLastTraversal = 0;
         this._databasePath = '';
         this._numChildrenThatCannotBeExpired = 0;
+        /*Added for Novapoint*/
+        this._suffixURL = '';
+
     };
 
     /**
@@ -43,6 +46,11 @@ define( [
 
     /** @lends PagedLOD.prototype */
     PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Lod.prototype, {
+        /*Added for Novapoint*/
+        setSuffixURL: function ( suffixURL ) {
+            this._suffixURL = suffixURL;
+        },
+
         // Functions here
         setRange: function ( childNo, min, max ) {
             if ( childNo >= this._range.length ) {
@@ -222,7 +230,7 @@ define( [
                             if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                                 this._perRangeDataList[ numChildren ].loaded = true;
                                 var dbhandler = visitor.getDatabaseRequestHandler();
-                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename, group, visitor.getFrameStamp().getSimulationTime(), priority );
+                                this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
                             } else {
                                 // Update timestamp of the request.
                                 if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined ) {

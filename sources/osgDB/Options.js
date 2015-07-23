@@ -7,7 +7,8 @@ define( [], function () {
 
         // database URL for PagedLOD structures
         databasePath: '',
-
+        // Added for Novapoint
+        plodSuffixURL: '',
         // callback used when loading data
         progressXHRCallback: undefined,
 
