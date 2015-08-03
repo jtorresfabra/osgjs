@@ -31,16 +31,20 @@
 
         createMap: function () {
             var layers = [
-               new ol.layer.Group({
-                   layers: [
-                      new ol.layer.Tile({
-                          source: new ol.source.MapQuest({layer: 'sat'})
-                      }),
-                      new ol.layer.Tile({
-                          source: new ol.source.MapQuest({layer: 'hyb'})
-                      })
-                   ]
-               })
+                new ol.layer.Group( {
+                    layers: [
+                        new ol.layer.Tile( {
+                            source: new ol.source.MapQuest( {
+                                layer: 'sat'
+                            } )
+                        } ),
+                        new ol.layer.Tile( {
+                            source: new ol.source.MapQuest( {
+                                layer: 'hyb'
+                            } )
+                        } )
+                    ]
+                } )
             ];
             this.map = new ol.Map( {
                 //loadTilesWhileInteracting: true,
@@ -57,22 +61,43 @@
             //this.map.getView().fit([ minExtent[ 0 ], minExtent[ 1 ], maxExtent[ 0 ], maxExtent[ 1 ] ],[ 256, 256 ]);
         },
 
-        getMapImage: function ( extent ) {
+        getMapImage: function ( node ) {
+            // Let's see some OpenLayers magic
+            var extent = node.extent;
             var defer = P.defer();
             var that = this;
-            var postCompose = function ( event ) {
-                var canvas = event.context.canvas;
-                defer.resolve( canvas );
-            };
-            this.map.once( 'postcompose', postCompose );
-            var view = this.map.getView();
-                view.fit( extent, [ 128, 128 ], {
-                    constrainResolution: false
-                } );
-            //var res = view.getResolutionForExtent( extent, this.map.getSize() );
-            //view.setResolution(res);
-            //view.setCenter( [ ( extent[ 2 ] + extent[ 0 ] ) / 2, ( extent[ 3 ] + extent[ 1 ] ) / 2 ] );
 
+            var postRender = function ( event ) {
+                var viewport = that.map.getViewport();
+                var canvas = viewport.getElementsByTagName( "canvas" )[ 0 ];
+                that.map.unByKey( key );
+                var canvasCopy = cloneCanvas( canvas );
+                defer.resolve( canvasCopy );
+            };
+            var cloneCanvas = function ( oldCanvas ) {
+                //create a new canvas
+                var newCanvas = document.createElement( 'canvas' );
+                var context = newCanvas.getContext( '2d' );
+                //set dimensions
+                newCanvas.width = oldCanvas.width;
+                newCanvas.height = oldCanvas.height;
+                //apply the old canvas to the new one
+                context.drawImage( oldCanvas, 0, 0 );
+                //return the new canvas
+                return newCanvas;
+            };
+            // var drawTileInfo = function ( event ){
+            //     var ctx = event.context;
+            //     ctx.font="20px Georgia";
+            //     ctx.fillStyle = 'yellow';
+            //     ctx.fillText(node.parents[ 0 ].level + ' ' + node.parents[ 0 ].x + node.parents[ 0 ].y,10,50);
+            // }
+            //this.map.once( 'postcompose', drawTileInfo );
+            var key = this.map.once( 'postrender', postRender );
+            var view = this.map.getView();
+            view.fit( extent, [ 128, 128 ], {
+                constrainResolution: false
+            } );
             return defer.promise;
         },
 
@@ -88,16 +113,16 @@
                 cull: function ( node, nv ) {
                     if ( !that.loadingMap && !node.loaded ) {
                         that.loadingMap = true;
-                        if ( !node.extent ) return;
-                        that.getMapImage( node.extent ).then( function ( img ) {
+                        that.getMapImage( node ).then( function ( canvas ) {
                             var texture = new osg.Texture();
                             texture.setTextureSize( 128, 128 );
                             texture.setMinFilter( 'LINEAR' );
                             texture.setMagFilter( 'LINEAR' );
-                            texture.setImage( img );
+                            texture.setImage( canvas );
                             node.loaded = true;
                             var stateset = node.getOrCreateStateSet();
                             stateset.setTextureAttributeAndModes( 0, texture );
+                            node._cullCallback = undefined;
                             that.loadingMap = false;
                             return true;
                         } ).catch( function ( e ) {
@@ -109,10 +134,6 @@
                 }
             };
             node.setCullCallback( new CullCallback() );
-
-            // Let's see some OpenLayers magic
-
-
             return node;
         },
 
@@ -199,7 +220,6 @@
                     // console.log('L =', designation.sLevel,' Row =', designation.sRow ,' Col =', designation.sCol);
                     // console.log ('tileGeometry =', tileGeometry.x , tileGeometry.y, tileGeometry.width, tileGeometry.height);
                     var node = that.createTileForGeometry( i, tileGeometry.x, tileGeometry.y, tileGeometry.width, tileGeometry.height );
-
                     var plod = new osg.PagedLOD();
                     plod.setRangeMode( osg.PagedLOD.PIXEL_SIZE_ON_SCREEN );
                     plod.addChild( node, 0, 100000 );
@@ -254,7 +274,7 @@
             this.viewer.setSceneData( plod );
             var bs = plod.getBound();
             this.viewer.setupManipulator();
-            this.viewer.getManipulator().setDistance( bs.radius() * 3.5 );
+            this.viewer.getManipulator().setDistance( bs.radius() * 2.5 );
             this.initGui();
             // Cheat dat gui to show at least two decimals and start at 1.0
             this._config.lodScale = 1.0;
