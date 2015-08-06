@@ -40,6 +40,14 @@ Map.prototype = {
         this.getKeys();
     },
 
+    clear: function () {
+       var keys = Object.keys( this );
+       if ( keys.length > 0 ) {
+          for ( var i = 0, l = keys.length; i < l; i++ )
+              delete this[ keys[ i ] ];
+          }
+    },
+
     setMap: function ( map ) {
 
         var i, l;

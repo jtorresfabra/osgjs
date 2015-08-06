@@ -16,9 +16,7 @@ define( [
     'osg/Viewport',
     'osgUtil/LineSegmentIntersector',
     'osgUtil/IntersectionVisitor',
-    'osg/Shape',
-    'osg/Material'
-], function ( MACROUTILS, Node, Texture, Camera, FrameBufferObject, Transform, Notify, BoundingSphere, NodeVisitor, ComputeBoundsVisitor, Vec3, StateSet, Matrix, Polytope, Viewport, LineSegmentIntersector, IntersectionVisitor, Shape, Material ) {
+], function ( MACROUTILS, Node, Texture, Camera, FrameBufferObject, Transform, Notify, BoundingSphere, NodeVisitor, ComputeBoundsVisitor, Vec3, StateSet, Matrix, Polytope, Viewport, LineSegmentIntersector, IntersectionVisitor ) {
 
     'use strict';
 
@@ -39,6 +37,7 @@ define( [
         this._minAngle = -0.35;
         this._maxZoom = 0.5;
         this._textureUnit = 0;
+        this.init();
     };
 
     OverlayNode.OBJECT_DEPENDENT_WITH_ORTHOGRAPHIC_OVERLAY = 0;
@@ -72,6 +71,7 @@ define( [
         },
         setOverlayTextureUnit: function ( unit ) {
             this._textureUnit = unit;
+            this.updateMainSubgraphStateSet();
         },
         getOverlayTextureUnit: function () {
             return this._textureUnit;
@@ -90,6 +90,16 @@ define( [
         },
         dirtyOverlayTexture: function () {
             this._updateCamera = true;
+        },
+
+        updateMainSubgraphStateSet: function () {
+            var that = this;
+            this._overlayDataMap.forEach( function ( overlayData ) {
+                if ( overlayData._mainSubgraphStateSet !== undefined ) {
+                    overlayData._mainSubgraphStateSet.clear();
+                    overlayData._mainSubgraphStateSet.setTextureAttributeAndModes( that._textureUnit, overlayData._texture );
+                }
+            } );
         },
         getOverlayData: function ( cullVisitor ) {
             if ( this._overlayDataMap.has( cullVisitor ) ) return this._overlayDataMap.get( cullVisitor );
@@ -121,9 +131,6 @@ define( [
                 //camera.attachRenderBuffer( FrameBufferObject.DEPTH_ATTACHMENT, FrameBufferObject.DEPTH_COMPONENT16 );
                 if ( this._overlaySubgraph !== undefined ) 
                     camera.addChild( this._overlaySubgraph );
-                // Is this OK? should be checked as I don't see it in OSG's OverlayNode
-                this.addChild( camera );
-
                 overlayData._camera = camera;
             }
             if ( overlayData._mainSubgraphStateSet === undefined ) {
@@ -257,6 +264,10 @@ define( [
                     }
                     this._updateCamera = false;
                 }
+                // if we need to redraw then do cull traversal on camera.
+                if ( this._continuousUpdate ) {
+                    overlayData._camera.accept( nv );
+                }
                 // now set up the drawing of the main scene.
                 // TODO: TexGEN
                 // overlayData._texgenNode.accept( nv );
@@ -264,8 +275,7 @@ define( [
                 // overlayData._mainSubgraphStateSet.setTextureMode( this._textureUnit, StateAttribute.GL_TEXTURE_GEN_T, StateAttribute::ON );
                 // push the stateset
                 // We need to generate texCoords first.
-                overlayData._mainSubgraphStateSet.setTextureAttributeAndModes( 0, overlayData._texture );
-
+                //overlayData._mainSubgraphStateSet.setTextureAttributeAndModes( this._textureUnit, overlayData._texture );
                 nv.pushStateSet( overlayData._mainSubgraphStateSet );
                 Node.prototype.traverse.call( this, nv );
                 nv.popStateSet();
