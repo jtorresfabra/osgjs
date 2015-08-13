@@ -7,6 +7,7 @@ define( [
     'osg/Transform',
     'osg/Notify',
     'osg/BoundingSphere',
+    'osg/BoundingBox',
     'osg/NodeVisitor',
     'osg/ComputeBoundsVisitor',
     'osg/Vec3',
@@ -16,7 +17,8 @@ define( [
     'osg/Viewport',
     'osgUtil/LineSegmentIntersector',
     'osgUtil/IntersectionVisitor',
-], function ( MACROUTILS, Node, Texture, Camera, FrameBufferObject, Transform, Notify, BoundingSphere, NodeVisitor, ComputeBoundsVisitor, Vec3, StateSet, Matrix, Polytope, Viewport, LineSegmentIntersector, IntersectionVisitor ) {
+    'osg/Uniform'
+], function ( MACROUTILS, Node, Texture, Camera, FrameBufferObject, Transform, Notify, BoundingSphere, BoundingBox, NodeVisitor, ComputeBoundsVisitor, Vec3, StateSet, Matrix, Polytope, Viewport, LineSegmentIntersector, IntersectionVisitor, Uniform ) {
 
     'use strict';
 
@@ -37,6 +39,7 @@ define( [
         this._minAngle = -0.35;
         this._maxZoom = 0.5;
         this._textureUnit = 0;
+        this._dynamicOverlayResolution = false;
         this.init();
     };
 
@@ -56,12 +59,16 @@ define( [
         this._lastIntersection = undefined;
         this._lastZoom = undefined;
         this._textureFrustum = undefined;
+        this._lastVisibleBox = new BoundingBox();
     };
 
     /** @lends OverlayNode.prototype */
     OverlayNode.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Node.prototype, {
         init: function () {
             this.getOverlayData( 0 );
+        },
+        setDynamicOverlayResolution: function ( value ) {
+            this._dynamicOverlayResolution = value;
         },
         setContinuousUpdate: function ( value ) {
             this._continuousUpdate = value;
@@ -75,6 +82,9 @@ define( [
         },
         getOverlayTextureUnit: function () {
             return this._textureUnit;
+        },
+        setTextureSizeHint: function ( value ) {
+            this._textureSizeHint = value;
         },
         setOverlaySubgraph: function ( node ) {
             if ( this._overlaySubgraph === node ) return;
@@ -136,6 +146,7 @@ define( [
             if ( overlayData._mainSubgraphStateSet === undefined ) {
                 overlayData._mainSubgraphStateSet = new StateSet();
             }
+
             return overlayData;
         },
 
@@ -155,10 +166,10 @@ define( [
         },
 
         traverseViewObjectDependentWithOrtographicOverlay: ( function () {
-            var eye = Vec3.create();
-            var l = Vec3.create();
-            var up = Vec3.create();
+
             var upDirection = [ 0.0, 1.0, 0.0 ];
+            var viewDirection = [ 0.0, 0.0, 1.0 ];
+
             return function ( nv ) {
                 var overlayData = this.getOverlayData( 0 );
                 var camera = overlayData._camera;
@@ -166,101 +177,54 @@ define( [
                     Node.prototype.traverse.call( this, nv );
                     return;
                 }
+                var imgVisibleBox = new BoundingBox();
                 if ( this._continuousUpdate || this._updateCamera ) {
                     var bs = new BoundingSphere();
                     for ( var i = 0; i < camera.getNumChildren(); ++i ) {
                         bs.expandByBoundingSphere( camera.getChild( i ).getBound() );
                     }
-                    var cbVisitor = new ComputeBoundsVisitor();
-                    for ( i = 0; i < this.getNumChildren(); ++i ) {
-                        this.getChild( i ).accept( cbVisitor );
-                    }
                     var bsChildren = new BoundingSphere();
-                    bsChildren.expandByBoundingBox( cbVisitor.getBoundingBox() );
+                    for ( i = 0; i < this.getNumChildren(); ++i ) {
+                        bsChildren.expandByBoundingSphere( this.getChild( i ).getBound() );
+                    }
+
                     if ( bs.valid() || bsChildren.valid() ) {
                         if ( !bs.valid() || ( bs.radius() > bsChildren.radius() ) )
                             bs = bsChildren;
-                        // we will always work in UTM so we don't need to check if we are within a coordinate system node.
-                        var bbHeight = cbVisitor.getBoundingBox().getMax()[ 1 ] - cbVisitor.getBoundingBox().getMin()[ 1 ];
-                        var bbWidth = cbVisitor.getBoundingBox().getMax()[ 0 ] - cbVisitor.getBoundingBox().getMin()[ 0 ];
-                        var minSide = Math.min( bbHeight, bbWidth );
-                        // Need to use osgjs API
-                        var matrix = nv.getCurrentModelViewMatrix();
-                        Matrix.getLookAt( matrix, eye, l, up );
-                        var V = Vec3.sub( l, eye, [] );
-                        Vec3.normalize( V, V );
-                        // Compute intersections
-                        var obj = this.computeLineIntersection( eye, V, this, bs );
-                        var distance = obj.distance;
-                        var center = obj.point;
-                        var cellSize = 0.1;
-                        var minZoom = cellSize * this._textureSizeHint / minSide;
-                        var zoom = this._maxZoom;
-                        if ( distance > 0.0 && distance < bs.radius() ) {
-                            zoom = this._maxZoom * distance / minSide;
-                            overlayData._lastIntersection = center;
-                            overlayData._lastZoom = zoom;
-                            overlayData._validIntersection = true;
-                        } else {
-                            if ( overlayData._validIntersection ) {
-                                center = overlayData._lastIntersection;
-                                zoom = overlayData._lastZoom;
-                            } else {
-                                center = bs.center();
-                                zoom = this._maxZoom;
-                            }
-                        }
-                        var lookAt = [ center[ 0 ], center[ 1 ], 0.0 ];
-                        if ( center[ 2 ] < 0.0 )
-                            center[ 2 ] = -center[ 2 ];
-                        if ( center[ 2 ] === 0.0 ) center[ 2 ] = 1.0;
-                        if ( zoom < minZoom ) zoom = minZoom;
-                        if ( zoom > this._maxZoom ) zoom = this._maxZoom;
-                        var znear = -bs.radius() * 1000;
-                        var zfar = +bs.radius() * 1000;
-                        var top = minSide * zoom;
-                        var bottom = -top;
-                        var right = top;
-                        var left = -right;
-                        if ( zoom >= this._maxZoom ) {
-                            if ( left + center[ 0 ] > cbVisitor.getBoundingBox().xMin() ) {
-                                left = cbVisitor.getBoundingBox().xMin() - center[ 0 ];
-                            }
-                            if ( right + center[ 0 ] < cbVisitor.getBoundingBox().xMax() ) {
-                                right = cbVisitor.getBoundingBox().xMax() - center[ 0 ];
-                            }
-                            if ( top + center[ 1 ] < cbVisitor.getBoundingBox().yMax() ) {
-                                top = cbVisitor.getBoundingBox().yMax() - center[ 1 ];
-                            }
-                            if ( bottom + center[ 1 ] > cbVisitor.getBoundingBox().yMin() ) {
-                                bottom = cbVisitor.getBoundingBox().yMin() - center[ 1 ];
-                            }
-                        } else {
-                            if ( left + center[ 0 ] < cbVisitor.getBoundingBox().xMin() ) {
-                                left = cbVisitor.getBoundingBox().xMin() - center[ 0 ];
-                            }
-                            if ( right + center[ 0 ] > cbVisitor.getBoundingBox().xMax() ) {
-                                right = cbVisitor.getBoundingBox().xMax() - center[ 0 ];
-                            }
-                            if ( top + center[ 1 ] > cbVisitor.getBoundingBox().yMax() ) {
-                                top = cbVisitor.getBoundingBox().yMax() - center[ 1 ];
-                            }
-                            if ( bottom + center[ 1 ] < cbVisitor.getBoundingBox().yMin() ) {
-                                bottom = cbVisitor.getBoundingBox().yMin() - center[ 1 ];
-                            }
-                        }
-                        camera.setProjectionMatrixAsOrtho( left, right, bottom, top, znear, zfar );
-                        camera.setViewMatrixAsLookAt( center, lookAt, upDirection );
 
-                        // TODO: TexGEN Stuff
-                        // compute the matrix which takes a vertex from local coords into tex coords
-                        var MVP = Matrix.mult( camera.getViewMatrix(), camera.getProjectionMatrix(), [] );
-                        // var MVPT = MVP * Matrix.translate( 1.0, 1.0, 1.0, [] ) * Matrix.scale( 0.5, 0.5, 0.5, [] );
-                        // overlayData._texgenNode->getTexGen()->setMode(osg::TexGen::EYE_LINEAR);
-                        // overlayData._texgenNode->getTexGen()->setPlanesFromMatrix(MVPT);
-                        if ( overlayData._textureFrustum === undefined ) overlayData._textureFrustum = new Polytope();
-                        overlayData._textureFrustum.setToUnitFrustum( false, false );
-                        overlayData._textureFrustum.transformProvidingInverse( MVP );
+                        if ( overlayData._lastVisibleBox.valid() && this._dynamicOverlayResolution ) {
+                            imgVisibleBox = overlayData._lastVisibleBox;
+                        } else {
+                            imgVisibleBox.setMin( Vec3.sub( bs.center(), Vec3.mult( Vec3.set( 1, 1, 1, Vec3.create() ), bs.radius(), Vec3.create() ), Vec3.create() ) );
+                            imgVisibleBox.setMax( Vec3.add( bs.center(), Vec3.mult( Vec3.set( 1, 1, 1, Vec3.create() ), bs.radius(), Vec3.create() ), Vec3.create() ) );
+                        }
+
+                        var radius = imgVisibleBox.radius();
+                        var center = imgVisibleBox.center( Vec3.create() );
+                        center[ 2 ] = 0.0; // image plane is at z=0, we need this to avoid near/far clipping
+
+                        var viewDistance = 2.0 * radius;
+                        var eyePoint = Vec3.add( center, Vec3.mult( viewDirection, viewDistance, Vec3.create() ), Vec3.create() );
+                        var znear = viewDistance - radius;
+                        var zfar = viewDistance + radius;
+
+                        var top = imgVisibleBox.yMax() - center[ 1 ];
+                        var right = imgVisibleBox.xMax() - center[ 0 ];
+
+                        camera.setProjectionMatrixAsOrtho( -right, right, -top, top, znear, zfar );
+                        camera.setViewMatrixAsLookAt( eyePoint, center, upDirection );
+
+                        // planes for texture coordinate calculation in shader
+                        var Ax = 1 / ( 2 * right );
+                        var Ay = 1 / ( 2 * top );
+                        var Dx = -Ax * ( center[ 0 ] - right );
+                        var Dy = -Ay * ( center[ 1 ] - top );
+                        // Create uniforms
+                        var planeS = Uniform.createFloat4( [ Ax, 0.0, 0.0, Dx ], 'planeS' );
+                        var planeT = Uniform.createFloat4( [ 0.0, Ay, 0.0, Dy ], 'planeT' );
+                        overlayData._mainSubgraphStateSet.addUniform( planeS );
+                        overlayData._mainSubgraphStateSet.addUniform( planeT );
+                        overlayData._mainSubgraphStateSet.setShaderGeneratorName( 'overlaynode' );
                     }
                     this._updateCamera = false;
                 }
@@ -268,21 +232,48 @@ define( [
                 if ( this._continuousUpdate ) {
                     overlayData._camera.accept( nv );
                 }
+                //this.addChild( this._overlaySubgraph );
                 // now set up the drawing of the main scene.
-                // TODO: TexGEN
-                // overlayData._texgenNode.accept( nv );
-                // overlayData._mainSubgraphStateSet.setTextureMode( this._textureUnit, StateAttribute.GL_TEXTURE_GEN_S, StateAttribute::ON );
-                // overlayData._mainSubgraphStateSet.setTextureMode( this._textureUnit, StateAttribute.GL_TEXTURE_GEN_T, StateAttribute::ON );
-                // push the stateset
-                // We need to generate texCoords first.
-                //overlayData._mainSubgraphStateSet.setTextureAttributeAndModes( this._textureUnit, overlayData._texture );
                 nv.pushStateSet( overlayData._mainSubgraphStateSet );
                 Node.prototype.traverse.call( this, nv );
                 nv.popStateSet();
+                if ( this._dynamicOverlayResolution ) {
+                    // Calculate bbox of visible objects
+                    var visibleBox = new BoundingBox();
+                    this.calculateVisibleBBox( visibleBox, nv.getCurrentRenderBin() );
+                    overlayData._lastVisibleBox = visibleBox;
+                }
             };
         } )(),
 
 
+
+        calculateVisibleBBox: function ( visibleBox, renderBin ) {
+            if ( renderBin === undefined ) return;
+            var binList = renderBin.getRenderBinList();
+            var keys = window.Object.keys( binList );
+            for ( var i = 0, l = keys.length; i < l; i++ ) {
+                this.calculateVisibleBBox( visibleBox, binList[ keys[ i ] ] );
+            }
+
+            var stateGraphList = renderBin.getStateGraphList();
+
+            for ( i = 0, l = stateGraphList.length; i < l; i++ ) {
+                var leafs = stateGraphList[ i ].leafs;
+                for ( var j = 0, k = leafs.length; j < k; j++ ) {
+                    var leaf = leafs[ j ];
+                    // ** WARNING we assume there are no transformations in the subgraph (we ignore them)
+                    var geometry = leaf._geometry;
+                    var bbox = geometry.getBoundingBox();
+
+                    if ( bbox.valid() ) {
+                        {
+                            visibleBox.expandByBoundingBox( bbox );
+                        }
+                    }
+                }
+            }
+        },
         computeLineIntersection: function ( eye, lookVector, scene, bs ) {
             var intersector = new LineSegmentIntersector();
             var iv = new IntersectionVisitor();
