@@ -30,7 +30,10 @@ define( [
 
                 texCoordMap[ texCoordUnit ] = true;
             }
-        }
+        },
+        getFragmentShaderName: function () {
+            return 'OverlayNodeShaderCompiler';
+        },
     } );
 
     return OverlayNodeShaderCompiler;

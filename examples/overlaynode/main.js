@@ -11,8 +11,8 @@
 
     var minExtent = [ -20037508.342789244, -20037508.342789244 ];
     var maxExtent = [ 20037508.342789244, 20037508.342789244 ];
-
-    var extent = [ minExtent[ 0 ], minExtent[ 1 ], maxExtent[ 0 ], maxExtent[ 1 ] ];
+    var extent = [ 1159303.9963296999, 9206308.74538979, 1159996.3355393922, 9207002.018075367 ];
+    //var extent = [ minExtent[ 0 ], minExtent[ 1 ], maxExtent[ 0 ], maxExtent[ 1 ] ];
 
     var Example = function () {
         this.viewer = undefined;
@@ -29,8 +29,13 @@
                 new ol.layer.Group( {
                     layers: [
                         new ol.layer.Tile( {
-                            source: new ol.source.MapQuest( {
-                                layer: 'sat'
+                            source: new ol.source.TileWMS( {
+                                crossOrigin: 'anonymous',
+                                url: 'http://crossorigin.me/http://www.webatlas.no/wms-std-vegvesen-n1',
+                                params: {
+                                    LAYERS: 'ortofoto',
+                                    VERSION: '1.1.1'
+                                }
                             } )
                         } ),
                     ]
@@ -79,9 +84,13 @@
             var canvas = document.getElementById( 'View' );
 
             //var node = osg.createTexturedQuadGeometry( minExtent[ 0 ], minExtent[ 1 ], 0, maxExtent[ 0 ] - minExtent[ 0 ], 0, 0, 0, maxExtent[ 1 ] - minExtent[ 1 ], 0 );
-            var node = osg.createTexturedQuadGeometry( -5, -5, 0, 100, 0, 0, 0, 100, 0 );
+            var node = osg.createTexturedQuadGeometry( -5, -5, 0, 10, 0, 0, 0, 10, 0 );
             //var node = osg.createTexturedSphereGeometry( 8, 20, 20 );
             var cube = osg.createTexturedBoxGeometry( 0, 0, 0, 10, 10, 10 );
+            var materialGround = new osg.Material();
+            materialGround.setAmbient( [ 0, 0, 0, 1 ] );
+            materialGround.setDiffuse( [ 1, 1, 1, 1 ] );
+            cube.getOrCreateStateSet().setAttributeAndModes( materialGround );
             // The viewer
             this.texture = new osg.Texture();
             this.texture.setTextureSize( 1024, 1024 );
@@ -94,10 +103,10 @@
             } );
             this.overlayNode = new osgUtil.OverlayNode();
             this.overlayNode.setContinuousUpdate( true );
-            this.overlayNode.setDynamicOverlayResolution( true );
+            //this.overlayNode.setDynamicOverlayResolution( true );
             this.overlayNode.dirtyOverlayTexture();
             this.overlayNode.setOverlaySubgraph( node );
-            this.overlayNode.setOverlayTextureUnit( 0 );
+            this.overlayNode.setOverlayTextureUnit( 1 );
             this.overlayNode.addChild( cube );
 
             this.viewer = new osgViewer.Viewer( canvas, {
