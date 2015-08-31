@@ -75,22 +75,29 @@
         setMapImage: function ( img, node ) {
             this.texture.setImage( img );
             var stateset = node.getOrCreateStateSet();
-            this.overlayNode.dirtyOverlayTexture();
-            //this.overlayNode.setOverlayTextureUnit( 0 );
         },
         run: function () {
             // The 3D canvas.
             this.createMap();
             var canvas = document.getElementById( 'View' );
 
-            //var node = osg.createTexturedQuadGeometry( minExtent[ 0 ], minExtent[ 1 ], 0, maxExtent[ 0 ] - minExtent[ 0 ], 0, 0, 0, maxExtent[ 1 ] - minExtent[ 1 ], 0 );
-            var node = osg.createTexturedQuadGeometry( -5, -5, 0, 10, 0, 0, 0, 10, 0 );
-            //var node = osg.createTexturedSphereGeometry( 8, 20, 20 );
-            var cube = osg.createTexturedBoxGeometry( 0, 0, 0, 10, 10, 10 );
-            var materialGround = new osg.Material();
-            materialGround.setAmbient( [ 0, 0, 0, 1 ] );
-            materialGround.setDiffuse( [ 1, 1, 1, 1 ] );
-            cube.getOrCreateStateSet().setAttributeAndModes( materialGround );
+            var mt = new osg.MatrixTransform();
+            mt.setMatrix( osg.Matrix.makeTranslate( 50, 0, 0, [] ) );
+            var cube = osg.createTexturedBoxGeometry( 50, 50, 50, 10, 10, 10 );
+            mt.addChild( cube );
+
+            var bs = cube.getBound();
+            var bb = new osg.BoundingBox();
+            bb.expandByBoundingSphere( bs );
+            // var cbVisitor = new osg.ComputeBoundsVisitor();
+            // cube.accept( cbVisitor );
+            // var bb = cbVisitor.getBoundingBox();
+            var node = osg.createTexturedQuadGeometry( bb.xMin(), bb.yMin(), bb.zMin(), bb.xMax() - bb.xMin(), 0, 0, 0, bb.yMax() - bb.yMin(), 0 );
+            //var node = osg.createTexturedQuadGeometry( 45, 45, 45, 10, 0, 0, 0, 10, 0 );
+            // ar materialGround = new osg.Material();
+            // materialGround.setAmbient( [ 0, 0, 0, 1 ] );
+            // materialGround.setDiffuse( [ 1, 1, 1, 1 ] );
+            //cube.getOrCreateStateSet().setAttributeAndModes( materialGround );
             // The viewer
             this.texture = new osg.Texture();
             this.texture.setTextureSize( 1024, 1024 );
@@ -101,22 +108,25 @@
                 var stateset = node.getOrCreateStateSet();
                 stateset.setTextureAttributeAndModes( 0, that.texture );
             } );
+            var group = new osg.Node();
+            group.addChild( node );
             this.overlayNode = new osgUtil.OverlayNode();
             this.overlayNode.setContinuousUpdate( true );
             //this.overlayNode.setDynamicOverlayResolution( true );
             this.overlayNode.dirtyOverlayTexture();
             this.overlayNode.setOverlaySubgraph( node );
             this.overlayNode.setOverlayTextureUnit( 1 );
-            this.overlayNode.addChild( cube );
-
+            this.overlayNode.addChild( mt );
+            group.addChild( this.overlayNode );
             this.viewer = new osgViewer.Viewer( canvas, {
                 'enableFrustumCulling': true
             } );
             this.viewer.init();
-            this.viewer.setSceneData( this.overlayNode );
+            this.viewer.setSceneData( group );
             var bs = this.overlayNode.getBound();
             this.viewer.setupManipulator();
-            this.viewer.getManipulator().setDistance( bs.radius() * 3.5 );
+            this.viewer.getManipulator().setTarget( mt.getBound().center() );
+            this.viewer.getManipulator().setDistance( mt.getBound().radius() * 3.5 );
             this.viewer.run();
         }
     };
