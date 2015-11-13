@@ -6,6 +6,8 @@ var Vec3 = require( 'osg/Vec3' );
 var Vec4 = require( 'osg/Vec4' );
 var Quat = require( 'osg/Quat' );
 var Matrix = require( 'osg/Matrix' );
+var StateAttribute = require( 'osg/StateAttribute' );
+var BillboardAttribute = require( 'osg/BillboardAttribute' );
 var NodeVisitor = require( 'osg/NodeVisitor' );
 var TransformEnums = require( 'osg/TransformEnums' );
 var Node = require( 'osg/Node' );
@@ -111,6 +113,19 @@ AutoTransform.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInheri
 
     setAutoRotateToScreen: function ( value ) {
         this._autoRotateToScreen = value;
+        if ( !this._billboardAttribute ) {
+            this._billboardAttribute = new BillboardAttribute();
+        }
+        var stateset = this.getOrCreateStateSet();
+        if ( value ) {
+            // Temporary hack because StateAttribute.ON does not work right now
+            this._billboardAttribute.setEnabled( true );
+            stateset.setAttributeAndModes( this._billboardAttribute, StateAttribute.ON );
+        } else {
+            // Temporary hack because StateAttribute.OFF does not work right now
+            this._billboardAttribute.setEnabled( false );
+            stateset.setAttributeAndModes( this._billboardAttribute, StateAttribute.OFF );
+        }
     },
 
     getAutoRotateToScreen: function () {
@@ -253,12 +268,6 @@ AutoTransform.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInheri
                             }
                         }
                         this.setScale( size );
-                    }
-                    if ( this._autoRotateToScreen ) {
-                        var rotation = Quat.create();
-                        var modelView = visitor.getCurrentModelViewMatrix();
-                        Matrix.getRotate( modelView, rotation );
-                        this.setRotation( Quat.inverse( rotation, rotation ) );
                     }
                     this._previousWidth = width;
                     this._previousHeight = height;

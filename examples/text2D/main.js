@@ -280,6 +280,7 @@
             this._scene.accept( tv );
         },
 
+<<<<<<< HEAD
         onMouseClick: function ( canvas, viewer, ev ) {
             var ratioX = canvas.width / canvas.clientWidth;
             var ratioY = canvas.height / canvas.clientHeight;
@@ -301,6 +302,8 @@
             }
         },
 
+=======
+>>>>>>> Added AutoTransformNode, with autoscaletoscreen capabilities. Also modified Text to support different characterSizeModes based on Autotransform.
         run: function () {
 
             this.initGui();
