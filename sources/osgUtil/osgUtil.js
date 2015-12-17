@@ -15,7 +15,7 @@ var TangentSpaceGenerator = require( 'osgUtil/TangentSpaceGenerator' );
 var TriangleIntersect = require( 'osgUtil/TriangleIntersector' );
 var WebVRCustom = require( 'osgUtil/WebVRCustom' );
 var WebVR = require( 'osgUtil/WebVR' );
-var OverlayNode = require( 'osgUtil/OverlayNode' );
+
 
 var osgUtil = {};
 
@@ -35,5 +35,5 @@ osgUtil.SphereIntersector = SphereIntersector;
 osgUtil.TangentSpaceGenerator = TangentSpaceGenerator;
 osgUtil.TriangleIntersect = TriangleIntersect;
 osgUtil.WebVR = WebVR;
-osgUtil.OverlayNode = OverlayNode;
+
 module.exports = osgUtil;

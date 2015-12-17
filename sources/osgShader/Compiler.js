@@ -1341,7 +1341,26 @@ Compiler.prototype = {
         var vecOut = this.getVariable( 'tangentAttribute' );
         if ( vecOut ) return vecOut;
 
+<<<<<<< HEAD
         var hasMorph = this._morphAttribute && this._morphAttribute.hasTarget( 'Tangent' );
+=======
+        declareVertexTransformBillboard: function ( glPosition ) {
+            this.getOrCreateInputPosition();
+            var billboard = [ '%glPosition = %ProjectionMatrix * ( vec4( %Vertex, 1.0 ) + vec4( %ModelViewMatrix[ 3 ].xyz, 0.0 ) );', ];
+            if ( this._isAutoScaled ) {
+                billboard = [ 'vec4 pos = ( vec4( %Vertex, 1.0 ) + vec4( %ModelViewMatrix[ 3 ].xyz, 0.0 ) );',
+                    ' %glPosition = %ProjectionMatrix * ( vec4( %Vertex * 0.0015 * -pos.z, 1.0 ) + vec4( %ModelViewMatrix[ 3 ].xyz, 0.0 ) );',
+                ];
+            }
+            this.getNode( 'InlineCode' ).code( billboard.join( '\n' ) ).inputs( {
+                ModelViewMatrix: this.getOrCreateUniform( 'mat4', 'ModelViewMatrix' ),
+                Vertex: this.getOrCreateAttribute( 'vec3', 'Vertex' ),
+                ProjectionMatrix: this.getOrCreateUniform( 'mat4', 'ProjectionMatrix' )
+            } ).outputs( {
+                glPosition: glPosition
+            } );
+        },
+>>>>>>> Change Lighting to have two default lights. Sky and Head
 
         var inputTangent = this.getOrCreateAttribute( 'vec4', 'Tangent' );
         if ( !this._skinningAttribute && !hasMorph ) return inputTangent;
