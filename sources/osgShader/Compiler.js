@@ -65,6 +65,7 @@ var Compiler = function ( attributes, textureAttributes, shaderProcessor ) {
     this._isLighted = false; // either shadeless, or no light (beware ibl)
     this._isShadeless = false;
     this._isBillboard = false;
+    this._isAutoScaled = false;
     // from Attributes to variables
     // to build shader nodes graph from
     this.initAttributes();
@@ -107,6 +108,8 @@ Compiler.prototype = {
                 this._material = attributes[ i ];
             } else if ( type === 'ShadowReceiveAttribute' ) {
                 shadows.push( attributes[ i ] );
+            } else if ( type === 'AutoScale' ) {
+                this._isAutoScaled = !!attributes[ i ];
             } else if ( type === 'Billboard' ) {
                 this._isBillboard = !!attributes[ i ];
             } else if ( type === 'SkinningAttribute' ) {

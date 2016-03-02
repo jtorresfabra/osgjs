@@ -1,6 +1,7 @@
 <<<<<<< HEAD
 'use strict';
 var AutoTransform = require( 'osg/AutoTransform' );
+var AutoScaleAttribute = require( 'osg/AutoScaleAttribute' );
 var BillboardAttribute = require( 'osg/BillboardAttribute' );
 var BlendColor = require( 'osg/BlendColor' );
 var BlendFunc = require( 'osg/BlendFunc' );
@@ -236,6 +237,7 @@ define( [
 
 var osg = {};
 osg.AutoTransform = AutoTransform;
+osg.AutoScaleAttribute = AutoScaleAttribute;
 osg.BillboardAttribute = BillboardAttribute;
 osg.BlendColor = BlendColor;
 osg.BlendFunc = BlendFunc;

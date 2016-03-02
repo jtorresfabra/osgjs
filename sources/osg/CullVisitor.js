@@ -588,7 +588,6 @@ CullVisitor.prototype[ PagedLOD.typeID ] = CullVisitor.prototype[ Node.typeID ];
 
 
 CullVisitor.prototype[ LightSource.typeID ] = function ( node ) {
-    this._numLightSource++;
 
     var stateset = node.getStateSet();
     if ( stateset ) this.pushStateSet( stateset );
@@ -600,7 +599,6 @@ CullVisitor.prototype[ LightSource.typeID ] = function ( node ) {
         else
             this.addPositionedAttribute( null, light );
     }
-
 
     this.handleCullCallbacksAndTraverse( node );
 

@@ -155,9 +155,11 @@ Text.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( AutoTr
     setCharacterSize: function ( size ) {
         this._charactherSize = size;
         if ( this._charactherSizeMode !== Text.OBJECT_COORDS ) {
-            Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
-            if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT )
+            //Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
+            if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT ) {
+                //this.setMinimumScale( this._charactherSize / 10.0 );
                 this.setMaximumScale( this._charactherSize );
+            }
         }
         this._dirty = true;
     },
@@ -167,13 +169,19 @@ Text.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( AutoTr
     },
 
     setCharacterSizeMode: function ( mode ) {
-        this._charactherSizeMode = mode;
+        if ( typeof mode === 'string' ) {
+            this._charactherSizeMode = Text[ mode ];
+        } else {
+            this._charactherSizeMode = mode;
+        }
         if ( this._charactherSizeMode !== Text.OBJECT_COORDS ) {
-            Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
+            //Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
             this.setAutoScaleToScreen( true );
             this.setMaximumScale( Number.MAX_VALUE );
-            if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT )
+            if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT ) {
+                //this.setMinimumScale( this._charactherSize / 10.0 );
                 this.setMaximumScale( this._charactherSize );
+            }
         } else {
             this._matrixTransform.setMatrix( Matrix.create() );
             this.setAutoScaleToScreen( false );

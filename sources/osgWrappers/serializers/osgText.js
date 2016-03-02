@@ -23,6 +23,7 @@ osgTextWrapper.Text = function ( input, node ) {
         Notify.error( 'Vertical Alignment not supported' );
         return P.reject();
     }
+
     var alignment = jsonObj.Alignment;
     if ( jsonObj.Alignment.indexOf( 'BASE_LINE' ) > -1 ) {
         if ( jsonObj.Alignment === 'LEFT_BASE_LINE' ) {
@@ -44,7 +45,8 @@ osgTextWrapper.Text = function ( input, node ) {
     }
     node.setAlignment( alignment );
     node.setLayout( jsonObj.Layout );
-
+    //if ( jsonObj.CharacterSizeMode )
+    //    node.setCharacterSizeMode( jsonObj.CharacterSizeMode );
     return promise;
 };
 

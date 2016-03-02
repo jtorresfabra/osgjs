@@ -234,6 +234,21 @@ osgWrapper.MatrixTransform = function ( input, node ) {
     return promise;
 };
 
+osgWrapper.AutoTransform = function ( input, node ) {
+    var jsonObj = input.getJSON();
+
+    var promise = osgWrapper.Node( input, node );
+    node.setPosition( jsonObj.Position );
+    node.setRotation( jsonObj.Rotation );
+    node.setScale( jsonObj.Scale );
+    node.setAutoScaleToScreen( jsonObj.AutoScaleToScreen );
+    if ( jsonObj.AutoRotateMode === 'ROTATE_TO_SCREEN' || jsonObj.AutoRotateMode === 'ROTATE_TO_CAMERA' ) {
+        node.setAutoRotateToScreen( true );
+    }
+    node.setAutoScaleToScreen( jsonObj.AutoScaleToScreen );
+    return promise;
+};
+
 osgWrapper.LightSource = function ( input, node ) {
     var jsonObj = input.getJSON();
     if ( !jsonObj.Light )

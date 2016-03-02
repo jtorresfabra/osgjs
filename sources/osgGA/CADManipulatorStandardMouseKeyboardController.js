@@ -124,17 +124,17 @@ CADManipulatorStandardMouseKeyboardController.prototype = {
         }
     },
 
-    dblclick: function ( ev ) {
-        var manipulator = this._manipulator;
-        ev.preventDefault();
+    /*    dblclick: function ( ev ) {
+            var manipulator = this._manipulator;
+            ev.preventDefault();
 
-        manipulator.getZoomInterpolator().set( 0.0 );
-        var zoomTarget = manipulator.getZoomInterpolator().getTarget()[ 0 ] - 10; // Default interval 10
-        manipulator.getZoomInterpolator().setTarget( zoomTarget );
-        //var pos = this.getPositionRelativeToCanvas( ev );
-        var pos = manipulator.getPositionRelativeToCanvas( ev.clientX, ev.clientY );
-        manipulator.computeIntersections( pos );
-    },
+            manipulator.getZoomInterpolator().set( 0.0 );
+            var zoomTarget = manipulator.getZoomInterpolator().getTarget()[ 0 ] - 10; // Default interval 10
+            manipulator.getZoomInterpolator().setTarget( zoomTarget );
+            //var pos = this.getPositionRelativeToCanvas( ev );
+            var pos = manipulator.getPositionRelativeToCanvas( ev.clientX, ev.clientY );
+            manipulator.computeIntersections( pos );
+        },*/
 
     pushButton: function () {
         this._buttonup = false;
