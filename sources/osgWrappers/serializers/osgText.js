@@ -45,8 +45,8 @@ osgTextWrapper.Text = function ( input, node ) {
     }
     node.setAlignment( alignment );
     node.setLayout( jsonObj.Layout );
-    //if ( jsonObj.CharacterSizeMode )
-    //    node.setCharacterSizeMode( jsonObj.CharacterSizeMode );
+    if ( jsonObj.CharacterSizeMode )
+        node.setCharacterSizeMode( jsonObj.CharacterSizeMode );
     return promise;
 };
 

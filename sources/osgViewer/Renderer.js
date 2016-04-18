@@ -9,6 +9,7 @@ var StateGraph = require( 'osg/StateGraph' );
 var Vec4 = require( 'osg/Vec4' );
 var osgShader = require( 'osgShader/osgShader' );
 var DisplayGraph = require( 'osgUtil/DisplayGraph' );
+var Light = require( 'osg/Light' );
 
 
 var Renderer = function ( camera ) {

@@ -157,8 +157,9 @@ Text.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( AutoTr
         if ( this._charactherSizeMode !== Text.OBJECT_COORDS ) {
             //Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
             if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT ) {
-                //this.setMinimumScale( this._charactherSize / 10.0 );
-                this.setMaximumScale( this._charactherSize );
+                this.setMinimumScale( this._charactherSize );
+                //Matrix.makeScale( this._charactherSize * 10, this._charactherSize * 10, this._charactherSize * 10, this._matrixTransform.getMatrix() );
+                this.setMaximumScale( this._charactherSize * 2 );
             }
         }
         this._dirty = true;
@@ -175,12 +176,12 @@ Text.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( AutoTr
             this._charactherSizeMode = mode;
         }
         if ( this._charactherSizeMode !== Text.OBJECT_COORDS ) {
-            //Matrix.makeScale( this._charactherSize, this._charactherSize, this._charactherSize, this._matrixTransform.getMatrix() );
             this.setAutoScaleToScreen( true );
             this.setMaximumScale( Number.MAX_VALUE );
             if ( this._charactherSizeMode === Text.OBJECT_COORDS_WITH_MAXIMUM_SCREEN_SIZE_CAPPED_BY_FONT_HEIGHT ) {
-                //this.setMinimumScale( this._charactherSize / 10.0 );
-                this.setMaximumScale( this._charactherSize );
+                this.setMinimumScale( this._charactherSize );
+                //Matrix.makeScale( this._charactherSize * 10, this._charactherSize * 10, this._charactherSize * 10, this._matrixTransform.getMatrix() );
+                this.setMaximumScale( this._charactherSize * 2 );
             }
         } else {
             this._matrixTransform.setMatrix( Matrix.create() );
