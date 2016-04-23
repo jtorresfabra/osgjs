@@ -8,7 +8,7 @@ var StateAttribute = require( 'osg/StateAttribute' );
 var Stack = require( 'osg/Stack' );
 var Uniform = require( 'osg/Uniform' );
 var MACROUTILS = require( 'osg/Utils' );
-
+var WebGLCaps = require( 'osg/WebGLCaps' );
 
 var State = function ( shaderGeneratorProxy ) {
     Object.call( this );
@@ -705,43 +705,47 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
         }
     },
 
-    applyVertexAttributeUniforms: function ( colorAttrib ) {
+    enableVertexColor: function () {
 
         var program = this.attributeMap.Program.lastApplied;
 
         if ( !program._uniformsCache.ArrayColorEnabled ||
             !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
 
-        var hasColorAttrib = false;
-        if ( !colorAttrib ) {
-            hasColorAttrib = colorAttrib;
-        } else {
-            // check if we have colorAttribute on the current geometry
-            var color = program._attributesCache.Color;
-            hasColorAttrib = this.vertexAttribMap[ color ];
+        // update uniform
+        var uniform = this.uniforms.ArrayColorEnabled.globalDefault;
+
+        var previousColorEnabled = this._previousColorAttribPair[ program.getInstanceID() ];
+
+        if ( !previousColorEnabled ) {
+            uniform.setFloat( 1.0 );
+            uniform.apply( this.getGraphicContext(), program._uniformsCache.ArrayColorEnabled );
+            this._previousColorAttribPair[ program.getInstanceID() ] = true;
         }
 
-        // check per program
-        var previousColorAttrib = this._previousColorAttribPair[ program.getInstanceID() ];
+    },
 
-        // no change with the same program -> exit
-        if ( previousColorAttrib === hasColorAttrib ) return;
 
-        this._previousColorAttribPair[ program.getInstanceID() ] = hasColorAttrib;
+    disableVertexColor: function () {
+
+        var program = this.attributeMap.Program.lastApplied;
+
+        if ( !program._uniformsCache.ArrayColorEnabled ||
+            !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
 
         // update uniform
         var uniform = this.uniforms.ArrayColorEnabled.globalDefault;
 
-        if ( this._previousColorAttribPair[ program.getInstanceID() ] ) {
-            uniform.setFloat( 1.0 );
-        } else {
+        var previousColorEnabled = this._previousColorAttribPair[ program.getInstanceID() ];
+
+        if ( previousColorEnabled ) {
             uniform.setFloat( 0.0 );
+            uniform.apply( this.getGraphicContext(), program._uniformsCache.ArrayColorEnabled );
+            this._previousColorAttribPair[ program.getInstanceID() ] = false;
         }
 
-        var gl = this._graphicContext;
-        uniform.apply( gl, program._uniformsCache.ArrayColorEnabled );
-
     },
+
 
     applyDisablingOfVertexAttributes: function () {
 
@@ -754,7 +758,6 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
                 this.vertexAttribMap[ attr ] = false;
             }
         }
-        this.applyVertexAttributeUniforms();
     },
 
     clearAndDisableVertexAttribCache: function ( gl ) {
@@ -774,6 +777,37 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
         this.vertexAttribMap._disable.length = 0;
         this.vertexAttribMap._keys.length = 0;
 
+    },
+
+    /**
+     *  set a vertex array object.
+     *  return true if binded the vao and false
+     *  if was already binded
+     */
+    setVertexArrayObject: function ( vao ) {
+
+        if ( this._extVAO === undefined ) {
+            // returns null if no extension
+            this._extVAO = WebGLCaps.instance( this.getGraphicContext() ).getWebGLExtension( 'OES_vertex_array_object' );
+        }
+
+        if ( this._currentVAO !== vao ) {
+            this._extVAO.bindVertexArrayOES( vao );
+            this._currentVAO = vao;
+
+            // disable currentIndexVBO to force to bind indexArray from Geometry
+            // if there is a change of vao
+            this.currentIndexVBO = undefined;
+
+            /*develblock:start*/
+            if ( vao !== null && !this._extVAO.isVertexArrayOES( vao ) ) {
+                Notify.error( 'VAO broken' );
+            }
+            /*develblock:end*/
+
+            return true;
+        }
+        return false;
     },
 
     setVertexAttribArray: function ( attrib, array, normalize ) {
