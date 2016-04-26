@@ -3,6 +3,7 @@ var MACROUTILS = require( 'osg/Utils' );
 var Node = require( 'osg/Node' );
 var Notify = require( 'osg/Notify' );
 var WebGLCaps = require( 'osg/WebGLCaps' );
+var DrawElements = require( 'osg/DrawElements' );
 var BufferArrayProxy = require( 'osg/BufferArrayProxy' );
 
 /**
@@ -154,8 +155,25 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
         return this.attributes;
     },
 
+    /**
+     * Return the primitiveset list
+     * If you modify something inside this array
+     * you must call dirty() on the Geometry
+     */
     getPrimitiveSetList: function () {
         return this.primitives;
+    },
+
+    /**
+     * Set the buffer array on the attribute name key
+     * key is often something like Vertex, Normal, Color, ...
+     * for classic geometry
+     */
+    setVertexAttribArray: function ( key, buffer, binding ) {
+        if ( this._attributes[ key ] !== buffer ) {
+            this._attributes[ key ] = buffer;
+            this.dirty();
+        }
     },
 
     generateDrawCommand: function ( state, program, prgID ) {
@@ -226,9 +244,25 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
 
 
         primitives = this._primitives;
-        primitiveSetup.push( 'var primitives = this._primitives;' );
-        for ( j = 0, m = primitives.length; j < m; ++j ) {
-            primitiveSetup.push( 'primitives[' + j + '].draw(state);' );
+
+        // optimization add index into vao in case only 1 primitive set and it's
+        // a drawElements
+        if ( extVAO && primitives.length === 1 && primitives[ 0 ] instanceof DrawElements ) {
+
+            vertexAttributeSetup.push( 'state.setIndexArray( this._primitives[ 0 ].getIndices(), true );' );
+
+            primitiveSetup.push( 'var primitive = this._primitives[ 0 ];' );
+            primitiveSetup.push( 'var indexes = primitive.getIndices();' );
+            primitiveSetup.push( 'if ( indexes.isDirty() ) indexes.compile( gl );' );
+            primitiveSetup.push( 'primitive.drawElements( state );' );
+
+        } else {
+
+            primitiveSetup.push( 'var primitives = this._primitives;' );
+            for ( j = 0, m = primitives.length; j < m; ++j ) {
+                primitiveSetup.push( 'primitives[' + j + '].draw(state);' );
+            }
+
         }
 
         var generated;
@@ -256,6 +290,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
             vertexSetupCommand.call( this, state );
 
             // setup the program
+            vaoSetup.push( 'var gl = state.getGraphicContext();' );
             vaoSetup.push( 'var vao = this._vao[ ' + prgID + ' ] ' );
             vaoSetup.push( 'var hasChanged = state.setVertexArrayObject( vao );' );
             vaoSetup.push( 'if ( hasChanged ) {' );

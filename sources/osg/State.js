@@ -680,11 +680,11 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
         }
     },
 
-    setIndexArray: function ( array ) {
+    setIndexArray: function ( array, force ) {
 
         var gl = this._graphicContext;
 
-        if ( this.currentIndexVBO !== array ) {
+        if ( this.currentIndexVBO !== array || force ) {
             array.bind( gl );
             this.currentIndexVBO = array;
         }
@@ -798,12 +798,6 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
             // disable currentIndexVBO to force to bind indexArray from Geometry
             // if there is a change of vao
             this.currentIndexVBO = undefined;
-
-            /*develblock:start*/
-            if ( vao !== null && !this._extVAO.isVertexArrayOES( vao ) ) {
-                Notify.error( 'VAO broken' );
-            }
-            /*develblock:end*/
 
             return true;
         }
