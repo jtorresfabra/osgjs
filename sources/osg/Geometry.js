@@ -1,6 +1,7 @@
 'use strict';
 var MACROUTILS = require( 'osg/Utils' );
 var Node = require( 'osg/Node' );
+var Notify = require( 'osg/Notify' );
 var WebGLCaps = require( 'osg/WebGLCaps' );
 var BufferArrayProxy = require( 'osg/BufferArrayProxy' );
 
@@ -8,17 +9,69 @@ var BufferArrayProxy = require( 'osg/BufferArrayProxy' );
  * Geometry manage array and primitives to draw a geometry.
  * @class Geometry
  */
+
+// enable VAO only if you have Proxy
+var enableVAO = Boolean( window.Proxy );
+if ( enableVAO ) Notify.log( 'enable VAO' );
+
 var Geometry = function () {
 
     Node.call( this );
-    this.primitives = [];
-    this.attributes = {};
+
+    // Use proxy to detect change in vertex attributes
+    // you should use setVertexAttribute but if you dont
+    if ( window.Proxy ) {
+
+        var self = this;
+
+        this._attributes = {};
+        this._primitives = [];
+        this.attributes = new Proxy( this._attributes, {
+            set: function ( obj, prop, value ) {
+                var old = obj[ prop ];
+                if ( old !== value ) {
+                    obj[ prop ] = value;
+                    self.dirty();
+                }
+                return true;
+            }
+        } );
+
+        var push = function ( value ) {
+            this.push( value );
+            self.dirty();
+
+        }.bind( this._primitives );
+
+        var pop = function () {
+            this.pop();
+            self.dirty();
+
+        }.bind( this._primitives );
+
+        this.primitives = new Proxy( this._primitives, {
+            get: function ( obj, key ) {
+                if ( key === 'push' ) return push;
+                if ( key === 'pop' ) return pop;
+                return obj[ key ];
+            }
+        } );
+
+    } else {
+
+        this.attributes = {};
+        this.primitives = [];
+        this._primitives = this.primitives;
+        this._attributes = this.attributes;
+
+    }
 
     // function is generated for each Shader Program ID
     // which generates a a special "draw"
     // TODO: could be upon hash of combination of attributes
     // (as multiple shader Programs can use same combination of attributes)
     this._cacheDrawCall = {};
+
     // VAO cached data, per combination of vertex buffer
     // program id also the cache key
     this._extVAO = undefined;
@@ -37,17 +90,17 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
 
         if ( this.stateset !== undefined ) this.stateset.releaseGLObjects();
 
-        var keys = window.Object.keys( this.attributes );
+        var keys = window.Object.keys( this._attributes );
         var value;
         var i, l;
 
         for ( i = 0, l = keys.length; i < l; i++ ) {
-            value = this.attributes[ keys[ i ] ];
+            value = this._attributes[ keys[ i ] ];
             value.releaseGLObjects();
         }
 
-        for ( var j = 0, h = this.primitives.length; j < h; j++ ) {
-            var prim = this.primitives[ j ];
+        for ( var j = 0, h = this._primitives.length; j < h; j++ ) {
+            var prim = this._primitives[ j ];
             if ( prim.getIndices !== undefined ) {
                 if ( prim.getIndices() !== undefined && prim.getIndices() !== null ) {
                     prim.indices.releaseGLObjects();
@@ -80,11 +133,12 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
     },
 
     getPrimitives: function () {
-        return this.primitives;
+        // Notify.warn( 'deprecated use instead getPrimitiveSetList' );
+        return this.getPrimitiveSetList();
     },
 
     getAttributes: function () {
-        // Notify.warn('deprecated use instead getVertexAttributeList');
+        // Notify.warn( 'deprecated use instead getVertexAttributeList' );
         return this.getVertexAttributeList();
     },
 
@@ -138,7 +192,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
 
             if ( attr === undefined ) continue;
 
-            var attributeBuffer = this.attributes[ key ];
+            var attributeBuffer = this._attributes[ key ];
 
             // dont use VAO if we have BufferArrayProxy
             // typically used for morphing
@@ -155,7 +209,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
             if ( !hasVertexColor && key === 'Color' )
                 hasVertexColor = true;
 
-            vertexAttributeSetup.push( 'attr = this.attributes[\'' + key + '\'];' );
+            vertexAttributeSetup.push( 'attr = this._attributes[\'' + key + '\'];' );
             vertexAttributeSetup.push( 'if ( attr.BufferArrayProxy ) attr = attr.getBufferArray();' );
             vertexAttributeSetup.push( 'if ( !attr.isValid() ) return;' );
             vertexAttributeSetup.push( 'state.setVertexAttribArray(' + attribute + ', attr, false);' );
@@ -172,8 +226,8 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
         }
 
 
-        primitives = this.primitives;
-        primitiveSetup.push( 'var primitives = this.primitives;' );
+        primitives = this._primitives;
+        primitiveSetup.push( 'var primitives = this._primitives;' );
         for ( j = 0, m = primitives.length; j < m; ++j ) {
             primitiveSetup.push( 'primitives[' + j + '].draw(state);' );
         }
@@ -244,7 +298,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
             // no cache for this combination of vertex attributes
             // compute new Draw Call
 
-            if ( this._extVAO === undefined ) { // will be null if not supported
+            if ( this._extVAO === undefined && enableVAO ) { // will be null if not supported
                 var extVAO = WebGLCaps.instance( state.getGraphicContext() ).getWebGLExtension( 'OES_vertex_array_object' );
                 this._extVAO = extVAO;
             }
@@ -266,7 +320,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
         var attributesCache = program._attributesCache;
 
 
-        var primitives = this.primitives;
+        var primitives = this._primitives;
         //state.disableVertexAttribsExcept(attributeList);
 
         for ( var j = 0, m = primitives.length; j < m; ++j ) {
