@@ -206,7 +206,7 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
 
         var normal = Matrix.create();
 
-        return function ( matrix ) {
+        return function StateApplyModelViewMatrix ( matrix ) {
 
             if ( this._modelViewMatrix === matrix ) return false;
 
