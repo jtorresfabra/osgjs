@@ -204,7 +204,7 @@ ReaderParser.parseSceneGraphDeprecated = function ( node ) {
             }
         }
 
-        var attrKeys = Object.keys( attributes );
+        var attrKeys = window.Object.keys( attributes );
         for ( var i = 0, li = attrKeys.length; i < li; i++ ) {
             var key = attrKeys[ i ];
             var attributeArray = attributes[ key ];
