@@ -19,7 +19,9 @@ var State = function ( shaderGeneratorProxy ) {
     if ( shaderGeneratorProxy === undefined )
         console.break();
 
-    this.currentVBO = null;
+    this._currentVAO = null;
+    this._currentIndexVBO = null;
+
     this.vertexAttribList = [];
     this.stateSets = new Stack();
     this._shaderGeneratorNames = new Stack();
@@ -77,6 +79,7 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
 
     setGraphicContext: function ( graphicContext ) {
         this._graphicContext = graphicContext;
+        this._extVAO = WebGLCaps.instance( graphicContext ).getWebGLExtension( 'OES_vertex_array_object' );
     },
 
     getGraphicContext: function () {
@@ -781,9 +784,9 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
 
         var gl = this._graphicContext;
 
-        if ( this.currentIndexVBO !== array || force ) {
+        if ( this._currentIndexVBO !== array ) {
             array.bind( gl );
-            this.currentIndexVBO = array;
+            this._currentIndexVBO = array;
         }
 
         if ( array.isDirty() ) {
@@ -822,11 +825,9 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
 
     },
 
-
     disableVertexColor: function () {
 
         var program = this.attributeMap.Program.lastApplied;
-
         if ( !program._uniformsCache.ArrayColorEnabled ||
             !program._attributesCache.Color ) return; // no color uniform or attribute used, exit
 
@@ -857,16 +858,12 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
         }
     },
 
-    clearAndDisableVertexAttribCache: function ( gl ) {
+    clearVertexAttribCache: function () {
 
         var vertexAttribMap = this.vertexAttribMap;
         var keys = vertexAttribMap._keys;
         for ( var i = 0, l = keys.length; i < l; i++ ) {
             var attr = keys[ i ];
-
-            if ( vertexAttribMap[ attr ] ) {
-                gl.disableVertexAttribArray( attr );
-            }
             vertexAttribMap[ attr ] = undefined;
             vertexAttribMap._disable[ attr ] = false;
         }
@@ -883,18 +880,17 @@ State.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Objec
      */
     setVertexArrayObject: function ( vao ) {
 
-        if ( this._extVAO === undefined ) {
-            // returns null if no extension
-            this._extVAO = WebGLCaps.instance( this.getGraphicContext() ).getWebGLExtension( 'OES_vertex_array_object' );
-        }
-
         if ( this._currentVAO !== vao ) {
+
             this._extVAO.bindVertexArrayOES( vao );
             this._currentVAO = vao;
 
+            // disable cache to force a re enable of array
+            if ( !vao ) this.clearVertexAttribCache();
+
             // disable currentIndexVBO to force to bind indexArray from Geometry
             // if there is a change of vao
-            this.currentIndexVBO = undefined;
+            this._currentIndexVBO = undefined;
 
             return true;
         }
