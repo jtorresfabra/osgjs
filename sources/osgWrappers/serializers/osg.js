@@ -1,7 +1,6 @@
 'use strict';
 var P = require( 'bluebird' );
 var TransformEnums = require( 'osg/TransformEnums' );
-
 var osgWrapper = {};
 
 osgWrapper.Object = function ( input, obj ) {
@@ -75,7 +74,7 @@ osgWrapper.StateSet = function ( input, stateSet ) {
 
     var createAttribute = function ( jsonAttribute ) {
         var promise = input.setJSON( jsonAttribute ).readObject();
-        if ( promise.isRejected() ) // sometimes we have some empty objects
+        if ( promise === undefined ) // sometimes we have some empty objects
             return;
         promiseArray.push( promise );
         promise.then( stateSet.setAttributeAndModes.bind( stateSet ) );
@@ -89,7 +88,7 @@ osgWrapper.StateSet = function ( input, stateSet ) {
 
     var createTextureAttribute = function ( unit, textureAttribute ) {
         var promise = input.setJSON( textureAttribute ).readObject();
-        if ( promise.isRejected() ) // sometimes we have some empty objects
+        if ( promise === undefined ) // sometimes we have some empty objects
             return;
         promiseArray.push( promise );
         promise.then( stateSet.setTextureAttributeAndModes.bind( stateSet, unit ) );

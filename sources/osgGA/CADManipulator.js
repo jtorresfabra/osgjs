@@ -328,7 +328,10 @@ CADManipulator.prototype = MACROUTILS.objectInherit( Manipulator.prototype, {
     },
 
     getEyePosition: function ( eye ) {
-        this.computeEyePosition( this._target, this._distance, eye );
+        if ( this._eye[ 0 ] === 0 && this._eye[ 1 ] === 0 && this._eye[ 2 ] === 0 )
+            this.computeEyePosition( this._target, this._distance, eye );
+        else
+            Vec3.copy( this._eye, eye );
     },
 
     computeEyePosition: ( function () {

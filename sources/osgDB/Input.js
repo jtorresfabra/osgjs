@@ -644,7 +644,7 @@ Input.prototype = {
         var prop = window.Object.keys( jsonObj )[ 0 ];
         if ( !prop ) {
             Notify.warn( 'can\'t find property for object ' + jsonObj );
-            return P.reject();
+            return undefined;
         }
 
         var uniqueID = jsonObj[ prop ].UniqueID;
@@ -660,7 +660,7 @@ Input.prototype = {
 
         if ( !obj ) {
             Notify.warn( 'can\'t instanciate object ' + prop );
-            return P.reject();
+            return undefined;
         }
 
         var ReaderParser = require( 'osgDB/ReaderParser' );
