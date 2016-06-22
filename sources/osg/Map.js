@@ -41,11 +41,11 @@ Map.prototype = {
     },
 
     clear: function () {
-       var keys = Object.keys( this );
-       if ( keys.length > 0 ) {
-          for ( var i = 0, l = keys.length; i < l; i++ )
-              delete this[ keys[ i ] ];
-          }
+        var keys = window.Object.keys( this );
+        if ( keys.length > 0 ) {
+            for ( var i = 0, l = keys.length; i < l; i++ )
+                delete this[ keys[ i ] ];
+        }
     },
 
     setMap: function ( map ) {

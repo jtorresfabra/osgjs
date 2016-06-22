@@ -108,31 +108,31 @@ Input.prototype = {
 
     //Added for Novapoint
     setPagedLODSuffixURL: function ( suffix ) {
-       this._defaultOptions.plodSuffixURL = suffix;
+        this._defaultOptions.plodSuffixURL = suffix;
     },
     getPagedLODSuffixURL: function () {
-       return this._defaultOptions.plodSuffixURL;
+        return this._defaultOptions.plodSuffixURL;
     },
 
     computeURL: function ( url ) {
 
-       if ( typeof this._defaultOptions.prefixURL === 'string' &&
-                this._defaultOptions.prefixURL.length > 0 ) {
-
-                return this._defaultOptions.prefixURL + url;
-            }
-
-            return url;
-     },
-     //Added for Novapoint
-     computeBinaryURL: function ( url ) {
         if ( typeof this._defaultOptions.prefixURL === 'string' &&
-           this._defaultOptions.plodPrefixURL.length > 0 ) {
-           return this._defaultOptions.databasePath + url;
-         }
+            this._defaultOptions.prefixURL.length > 0 ) {
 
-         return url;
-     },
+            return this._defaultOptions.prefixURL + url;
+        }
+
+        return url;
+    },
+    //Added for Novapoint
+    computeBinaryURL: function ( url ) {
+        if ( typeof this._defaultOptions.prefixURL === 'string' &&
+            this._defaultOptions.plodPrefixURL.length > 0 ) {
+            return this._defaultOptions.databasePath + url;
+        }
+
+        return url;
+    },
 
     requestFile: function ( url, options ) {
 

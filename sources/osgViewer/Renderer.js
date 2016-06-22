@@ -135,33 +135,33 @@ Renderer.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Ob
 
         var light = view.getLight();
         //HACKED DEFAULT LIGHTING
-	 if ( light ) {
-	       if ( !this._head ) {
-	                this._head = new Light( 1 );
-	                this._head.setAmbient( [ 1.0, 1.0, 1.0, 1.0 ] );
-	                this._head.setDiffuse( [ 0.325, 0.325, 0.325, 1.0 ] );
-	            }
-	            this._cullVisitor.addPositionedAttribute( null, this._head );
-	            this._cullVisitor.addPositionedAttribute( camera.getViewMatrix(), light );
-	        } 
-       /*var View = require( 'osgViewer/View' );
-
         if ( light ) {
-
-            switch ( view.getLightingMode() ) {
-
-            case View.LightingMode.HEADLIGHT:
-                this._cullVisitor.addPositionedAttribute( null, light );
-                break;
-
-            case View.LightingMode.SKY_LIGHT:
-                this._cullVisitor.addPositionedAttribute( camera.getViewMatrix(), light );
-                break;
-
-            default:
-                break;
+            if ( !this._head ) {
+                this._head = new Light( 1 );
+                this._head.setAmbient( [ 1.0, 1.0, 1.0, 1.0 ] );
+                this._head.setDiffuse( [ 0.325, 0.325, 0.325, 1.0 ] );
             }
-        }*/
+            this._cullVisitor.addPositionedAttribute( null, this._head );
+            this._cullVisitor.addPositionedAttribute( camera.getViewMatrix(), light );
+        }
+        /*var View = require( 'osgViewer/View' );
+
+         if ( light ) {
+
+             switch ( view.getLightingMode() ) {
+
+             case View.LightingMode.HEADLIGHT:
+                 this._cullVisitor.addPositionedAttribute( null, light );
+                 break;
+
+             case View.LightingMode.SKY_LIGHT:
+                 this._cullVisitor.addPositionedAttribute( camera.getViewMatrix(), light );
+                 break;
+
+             default:
+                 break;
+             }
+         }*/
 
         this._cullVisitor.pushViewport( camera.getViewport() );
 

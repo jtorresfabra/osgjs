@@ -10,7 +10,7 @@ var Vec3 = require( 'osg/Vec3' );
  *  PagedLOD that can contains paged child nodes
  *  @class PagedLod
  */
-    var PagedLOD = function () {
+var PagedLOD = function () {
     Lod.call( this );
     this._perRangeDataList = [];
     this._loading = false;
@@ -20,30 +20,30 @@ var Vec3 = require( 'osg/Vec3' );
     this._frameNumberOfLastTraversal = 0;
     this._databasePath = '';
     this._numChildrenThatCannotBeExpired = 0;
-        /*Added for Novapoint*/
-        this._suffixURL = '';
-    };
+    /*Added for Novapoint*/
+    this._suffixURL = '';
+};
 
-    /**
-     *  PerRangeData utility structure to store per range values
-     *  @class PerRangeData
-     */
-    var PerRangeData = function () {
-        this.filename = '';
-        this.function = undefined;
-        this.loaded = false;
-        this.timeStamp = 0.0;
-        this.frameNumber = 0;
-        this.frameNumberOfLastTraversal = 0;
-        this.dbrequest = undefined;
-    };
+/**
+ *  PerRangeData utility structure to store per range values
+ *  @class PerRangeData
+ */
+var PerRangeData = function () {
+    this.filename = '';
+    this.function = undefined;
+    this.loaded = false;
+    this.timeStamp = 0.0;
+    this.frameNumber = 0;
+    this.frameNumberOfLastTraversal = 0;
+    this.dbrequest = undefined;
+};
 
-    /** @lends PagedLOD.prototype */
-    PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Lod.prototype, {
-        /*Added for Novapoint*/
-        setSuffixURL: function ( suffixURL ) {
-            this._suffixURL = suffixURL;
-        },
+/** @lends PagedLOD.prototype */
+PagedLOD.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( Lod.prototype, {
+    /*Added for Novapoint*/
+    setSuffixURL: function ( suffixURL ) {
+        this._suffixURL = suffixURL;
+    },
 
     setRange: function ( childNo, min, max ) {
         if ( childNo >= this._range.length ) {
@@ -135,7 +135,7 @@ var Vec3 = require( 'osg/Vec3' );
         }
     },
 
-     traverse: ( function () {
+    traverse: ( function () {
 
         // avoid to generate variable on the heap to limit garbage collection
         // instead create variable and use the same each time
@@ -223,7 +223,7 @@ var Vec3 = require( 'osg/Vec3' );
                         if ( this._perRangeDataList[ numChildren ].loaded === false ) {
                             this._perRangeDataList[ numChildren ].loaded = true;
                             var dbhandler = visitor.getDatabaseRequestHandler();
-	                    this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );       	
+                            this._perRangeDataList[ numChildren ].dbrequest = dbhandler.requestNodeFile( this._perRangeDataList[ numChildren ].function, this._databasePath + this._perRangeDataList[ numChildren ].filename + this._suffixURL, group, visitor.getFrameStamp().getSimulationTime(), priority );
                         } else {
                             // Update timestamp of the request.
                             if ( this._perRangeDataList[ numChildren ].dbrequest !== undefined ) {
@@ -248,4 +248,3 @@ var Vec3 = require( 'osg/Vec3' );
 
 MACROUTILS.setTypeID( PagedLOD );
 module.exports = PagedLOD;
-

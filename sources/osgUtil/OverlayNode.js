@@ -31,7 +31,7 @@ define( [
         this._overlayTechnique = OverlayNode.VIEW_OBJECT_DEPENDENT_WITH_ORTHOGRAPHIC_OVERLAY;
         this._overlaySubgraph = undefined;
         this._mainStateSet = undefined;
-        this._overlayDataMap = new Map();
+        this._overlayDataMap = new window.Map();
         this._textureSizeHint = 1024;
         this._renderTargetImplemetation = undefined;
         this._overlayClearColor = [ 0.0, 0.0, 0.0, 1.0 ];
@@ -140,7 +140,7 @@ define( [
                 camera.setRenderOrder( Camera.PRE_RENDER, 0 );
                 camera.attachTexture( FrameBufferObject.COLOR_ATTACHMENT0, overlayData._texture );
                 //camera.attachRenderBuffer( FrameBufferObject.DEPTH_ATTACHMENT, FrameBufferObject.DEPTH_COMPONENT16 );
-                if ( this._overlaySubgraph !== undefined ) 
+                if ( this._overlaySubgraph !== undefined )
                     camera.addChild( this._overlaySubgraph );
                 overlayData._camera = camera;
             }
