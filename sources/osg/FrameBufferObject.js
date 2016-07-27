@@ -213,7 +213,7 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
         /* develblock:end */
     },
 
-    framebufferTexture2D: function ( state, attachment, textureTarget, texture ) {
+    framebufferTexture2D: function ( state, attachment, textureTarget, texture, unit ) {
 
         var gl = this._gl;
 
@@ -252,6 +252,10 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
         if ( status !== 0x8CD5 ) {
             this._reportFrameBufferError( status );
         }
+        if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) !== gl.FRAMEBUFFER_COMPLETE ) {
+            Notify.error( 'Cant use framebuffer.' );
+            // See http://www.khronos.org/opengles/sdk/docs/man/xhtml/glCheckFramebufferStatus.xml
+        }
 
     },
 
@@ -284,7 +288,13 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
                     this.createFrameBufferObject( state );
 
                 this.bindFrameBufferObject();
-
+                var ext = this._gl.getExtension( 'WEBGL_draw_buffers' );
+                var bufs = [];
+                bufs[ 0 ] = ext.COLOR_ATTACHMENT0_WEBGL;
+                bufs[ 1 ] = ext.COLOR_ATTACHMENT1_WEBGL;
+                bufs[ 2 ] = ext.COLOR_ATTACHMENT2_WEBGL;
+                bufs[ 3 ] = ext.COLOR_ATTACHMENT3_WEBGL;
+                ext.drawBuffersWEBGL( bufs );
                 var hasRenderBuffer = false;
 
                 for ( var i = 0, l = attachments.length; i < l; ++i ) {
