@@ -45,7 +45,8 @@
         this._debugNodeRTT.setName( 'debugNodeRTT' );
         this._debugNodeRTT.getOrCreateStateSet().setRenderBinDetails( 1000, 'RenderBin' );
         this._root.addChild( this._debugNodeRTT );
-
+        this._debugProgram = undefined;
+        this._debugDepthProgram = undefined;
     };
 
     Example.prototype = {
@@ -247,6 +248,11 @@
                     quad.setName( 'debugComposerGeometry' + i );
 
                     stateSet.setTextureAttributeAndModes( 0, texture );
+                    if ( texture.getInternalFormat() !== osg.Texture.DEPTH_COMPONENT )
+                        stateSet.setAttributeAndModes( this.getDebugProgram() );
+                    else
+                        stateSet.setAttributeAndModes( this.getDebugDepthProgram() );
+
 
                     debugComposerNode.addChild( quad );
 
@@ -258,6 +264,99 @@
                 }
             }
 
+        },
+
+        getDebugProgram: function() {
+            if ( this._debugProgram === undefined ) {
+                var vertexShader = [
+                    '',
+                    '#version 100',
+
+                    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                    'precision highp float;',
+                    '#else',
+                    'precision mediump float;',
+                    '#endif',
+                    'attribute vec3 Vertex;',
+                    'attribute vec2 TexCoord0;',
+                    'varying vec2 FragTexCoord0;',
+                    'uniform mat4 ModelViewMatrix;',
+                    'uniform mat4 ProjectionMatrix;',
+                    'void main(void) {',
+                    '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+                    '  FragTexCoord0 = TexCoord0;',
+                    //'  FragTexCoord1 = TexCoord1;',
+                    '}',
+                    ''
+                ].join( '\n' );
+
+                var fragmentShader = [
+                    '',
+                    '#ifdef GL_ES',
+                    'precision highp float;',
+                    '#endif',
+                    'varying vec2 FragTexCoord0;',
+                    'uniform sampler2D Texture0;',
+                    '',
+                    'void main (void)',
+                    '{',
+                    '  vec2 uv = FragTexCoord0;',
+                    '  gl_FragColor = vec4(texture2D(Texture0, uv));',
+                    '}',
+                    ''
+                ].join( '\n' );
+
+
+                this._debugProgram = new osg.Program( new osg.Shader( 'VERTEX_SHADER', vertexShader ), new osg.Shader( 'FRAGMENT_SHADER', fragmentShader ) );
+            }
+            return this._debugProgram;
+        },
+
+        getDebugDepthProgram: function() {
+            if ( this._debugDepthProgram === undefined ) {
+                var vertexShader = [
+                    '',
+                    '#version 100',
+
+                    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                    'precision highp float;',
+                    '#else',
+                    'precision mediump float;',
+                    '#endif',
+                    'attribute vec3 Vertex;',
+                    'attribute vec2 TexCoord0;',
+                    'varying vec2 FragTexCoord0;',
+                    'uniform mat4 ModelViewMatrix;',
+                    'uniform mat4 ProjectionMatrix;',
+                    'void main(void) {',
+                    '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+                    '  FragTexCoord0 = TexCoord0;',
+                    //'  FragTexCoord1 = TexCoord1;',
+                    '}',
+                    ''
+                ].join( '\n' );
+
+                var fragmentShader = [
+                    '',
+                    '#ifdef GL_ES',
+                    'precision highp float;',
+                    '#endif',
+                    'varying vec2 FragTexCoord0;',
+                    'uniform sampler2D Texture0;',
+                    '',
+                    'void main (void)',
+                    '{',
+                    '  vec2 uv = FragTexCoord0;',
+                    '  vec4 color = vec4(texture2D(Texture0, uv));',
+                    '  gl_FragColor = vec4( color.r, color.r, color.r, 1.0 );',
+                    '}',
+                    ''
+                ].join( '\n' );
+
+
+                this._debugDepthProgram = new osg.Program( new osg.Shader( 'VERTEX_SHADER', vertexShader ), new osg.Shader( 'FRAGMENT_SHADER', fragmentShader ) );
+            }
+            return this._debugDepthProgram;
         },
 
         // get the model
