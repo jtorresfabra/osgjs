@@ -70,7 +70,7 @@
 
         var light = new osg.MatrixTransform();
         light.lightShadow = new osg.Light();
-        light.setUpdateCallback( new LightUpdateCallback( shadowNode.getMatrix() ) );
+        light.addUpdateCallback( new LightUpdateCallback( shadowNode.getMatrix() ) );
         light.getOrCreateStateSet().setAttributeAndModes( light.lightShadow );
 
         shadowNode.getOrCreateStateSet().setTextureAttributeAndModes( 0, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE );
@@ -193,7 +193,8 @@
             var h = 80;
             //osg.Matrix.makeTranslate(x ,y,h, node.getMatrix());
 
-            var matrixList = node.parents[ 0 ].getWorldMatrices();
+            var parents = node.getParents();
+            var matrixList = parents[ 0 ].getWorldMatrices();
             var worldMatrix = matrixList[ 0 ];
 
             var worldCameraPosition = osg.Matrix.transformVec3( worldMatrix, [ x, y, 80 ], [] );
@@ -264,7 +265,7 @@
         q.getOrCreateStateSet().addUniform( projectionShadow );
 
         q.getOrCreateStateSet().addUniform( modelViewShadow );
-        light.setUpdateCallback( new LightUpdateCallbackProjectedTexture( {
+        light.addUpdateCallback( new LightUpdateCallbackProjectedTexture( {
             'projectionShadow': projectionShadow,
             'modelViewShadow': modelViewShadow,
             'camera': rtt,
@@ -588,7 +589,8 @@
             var h = 80;
             osg.Matrix.makeTranslate( x, y, h, node.getMatrix() );
 
-            var matrixList = node.parents[ 0 ].getWorldMatrices();
+            var parents = node.getParents();
+            var matrixList = parents[ 0 ].getWorldMatrices();
             var worldMatrix = matrixList[ 0 ];
 
             var worldCameraPosition = osg.Matrix.transformVec3( worldMatrix, [ x, y, 80 ], [] );
@@ -693,7 +695,7 @@
         scene.setStateSet( stateSet );
 
 
-        light.setUpdateCallback( new LightUpdateCallbackShadowMap( {
+        light.addUpdateCallback( new LightUpdateCallbackShadowMap( {
             'projectionShadow': projectionShadow,
             'modelViewShadow': modelViewShadow,
             'camera': rtt,

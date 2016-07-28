@@ -40,13 +40,17 @@ BoundingBox.prototype = MACROUTILS.objectLibraryClass( {
         }
         var max = this._max;
         var min = this._min;
-        min[ 0 ] = Math.min( min[ 0 ], bs._center[ 0 ] - bs._radius );
-        min[ 1 ] = Math.min( min[ 1 ], bs._center[ 1 ] - bs._radius );
-        min[ 2 ] = Math.min( min[ 2 ], bs._center[ 2 ] - bs._radius );
+        var radius = bs._radius;
+        var x = bs._center[ 0 ];
+        var y = bs._center[ 1 ];
+        var z = bs._center[ 2 ];
+        min[ 0 ] = Math.min( min[ 0 ], x - radius );
+        min[ 1 ] = Math.min( min[ 1 ], y - radius );
+        min[ 2 ] = Math.min( min[ 2 ], z - radius );
 
-        max[ 0 ] = Math.max( max[ 0 ], bs._center[ 0 ] + bs._radius );
-        max[ 1 ] = Math.max( max[ 1 ], bs._center[ 1 ] + bs._radius );
-        max[ 2 ] = Math.max( max[ 2 ], bs._center[ 2 ] + bs._radius );
+        max[ 0 ] = Math.max( max[ 0 ], x + radius );
+        max[ 1 ] = Math.max( max[ 1 ], y + radius );
+        max[ 2 ] = Math.max( max[ 2 ], z + radius );
     },
 
     expandBySphere: function ( bs ) {
@@ -88,12 +92,9 @@ BoundingBox.prototype = MACROUTILS.objectLibraryClass( {
     center: function ( result ) {
         var min = this._min;
         var max = this._max;
-        if ( result === undefined ) {
-            // TODO: deprecated warning?
-            Notify.warn( 'deprecated use center( result ) instead !' );
-            result = Vec3.create();
-        }
-        Vec3.set( ( min[ 0 ] + max[ 0 ] ) * 0.5, ( min[ 1 ] + max[ 1 ] ) * 0.5, ( min[ 2 ] + max[ 2 ] ) * 0.5, result );
+        result[ 0 ] = ( min[ 0 ] + max[ 0 ] ) * 0.5;
+        result[ 1 ] = ( min[ 1 ] + max[ 1 ] ) * 0.5;
+        result[ 2 ] = ( min[ 2 ] + max[ 2 ] ) * 0.5;
         return result;
     },
 
