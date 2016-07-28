@@ -156,7 +156,7 @@
             this.createRTTScene().then( function ( scene ) {
                 camera.addChild( scene );
             } );
-            //var inputQuad = this.createRTTQuad( 1024, 1024 );
+
             var ext = this._extDrawBuffers;
             // createColorTextures
             for ( var i = 0; i < NUM_TEXTURES; i++ ) {
@@ -171,8 +171,7 @@
             camera.attachTexture( ext.COLOR_ATTACHMENT2_WEBGL, this._textureList[ 2 ], 0 );
             camera.attachTexture( ext.COLOR_ATTACHMENT3_WEBGL, this._textureList[ 3 ], 0 );
             camera.attachTexture( osg.FrameBufferObject.DEPTH_ATTACHMENT, depthTexture, 0 );
-            //camera.addChild( inputQuad );
-            //camera.addChild( scene );
+
             mrtGroup.addChild( camera );
 
             this.createDebugTextureList( this._textureList, {

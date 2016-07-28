@@ -266,7 +266,7 @@
 
         },
 
-        getDebugProgram: function() {
+        getDebugProgram: function () {
             if ( this._debugProgram === undefined ) {
                 var vertexShader = [
                     '',
@@ -312,7 +312,7 @@
             return this._debugProgram;
         },
 
-        getDebugDepthProgram: function() {
+        getDebugDepthProgram: function () {
             if ( this._debugDepthProgram === undefined ) {
                 var vertexShader = [
                     '',

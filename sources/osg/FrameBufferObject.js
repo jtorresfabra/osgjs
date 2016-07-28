@@ -18,7 +18,7 @@ var FrameBufferObject = function () {
     this._rbo = undefined;
     this._attachments = [];
     this._dirty = true;
-
+    this._extDrawBuffers = undefined;
 };
 
 FrameBufferObject.COLOR_ATTACHMENT0 = 0x8CE0;
@@ -213,7 +213,7 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
         /* develblock:end */
     },
 
-    framebufferTexture2D: function ( state, attachment, textureTarget, texture, unit ) {
+    framebufferTexture2D: function ( state, attachment, textureTarget, texture ) {
 
         var gl = this._gl;
 
@@ -288,13 +288,15 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
                     this.createFrameBufferObject( state );
 
                 this.bindFrameBufferObject();
-                var ext = this._gl.getExtension( 'WEBGL_draw_buffers' );
-                var bufs = [];
-                bufs[ 0 ] = ext.COLOR_ATTACHMENT0_WEBGL;
-                bufs[ 1 ] = ext.COLOR_ATTACHMENT1_WEBGL;
-                bufs[ 2 ] = ext.COLOR_ATTACHMENT2_WEBGL;
-                bufs[ 3 ] = ext.COLOR_ATTACHMENT3_WEBGL;
-                ext.drawBuffersWEBGL( bufs );
+
+
+                // Check extDrawBuffers extension
+                var extDrawBuffers = this._extDrawBuffers;
+                if ( extDrawBuffers === undefined ) { // will be null if not supported
+                    extDrawBuffers = gl.getExtension( 'WEBGL_draw_buffers' );
+                    //this._extDrawBuffers = extDrawBuffers;
+                }
+                var bufs = extDrawBuffers ? [] : undefined;
                 var hasRenderBuffer = false;
 
                 for ( var i = 0, l = attachments.length; i < l; ++i ) {
@@ -323,16 +325,20 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
                             return;
                         }
 
+                        // Not sure is needed to check the attachment.attachment
+                        if ( extDrawBuffers !== undefined ) {
+                            bufs.push( attachment.attachment );
+                        }
+
                         if ( !this.framebufferTexture2D( state, attachment.attachment, attachment.textureTarget, texture ) ) {
                             this.releaseGLObjects();
                             return;
 
                         }
-
-
                     }
-
                 }
+                if ( extDrawBuffers )
+                    extDrawBuffers.drawBuffersWEBGL( bufs );
 
                 this.checkStatus();
 
