@@ -27,7 +27,7 @@
         this._texturesNames = [];
         this._meshNames = [];
         this._shaderNames = [];
-
+        this._shaderPath = '';
         // defines
         this._mediaPath = '../media/';
 
@@ -121,6 +121,10 @@
 
         },
 
+        setShaderPath: function( path ){
+            this._shaderPath = path;
+        },
+
         readShaders: function ( shadersFilenames ) {
 
             this._shaderProcessor = new osgShader.ShaderProcessor();
@@ -128,7 +132,7 @@
             var defer = P.defer();
             var shaderNames = shadersFilenames || this._shaderNames;
             var shaders = shaderNames.map( function ( arg ) {
-                return arg;
+                return this._shaderPath + arg;
             }.bind( this ) );
 
 

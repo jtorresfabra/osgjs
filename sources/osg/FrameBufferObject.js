@@ -326,7 +326,7 @@ FrameBufferObject.prototype = MACROUTILS.objectInherit( GLObject.prototype, MACR
                         }
 
                         // Not sure is needed to check the attachment.attachment
-                        if ( extDrawBuffers !== undefined ) {
+                        if ( extDrawBuffers !== undefined && attachment.attachment >= extDrawBuffers.COLOR_ATTACHMENT0_WEBGL && attachment.attachment <= extDrawBuffers.COLOR_ATTACHMENT15_WEBGL ) {
                             bufs.push( attachment.attachment );
                         }
 
