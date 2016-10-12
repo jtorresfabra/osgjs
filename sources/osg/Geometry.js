@@ -200,7 +200,7 @@ Geometry.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInherit( No
             vertexAttributeSetup.push( 'attr = this._attributes[\'' + validAttributeKeyList[ i ] + '\'];' );
             vertexAttributeSetup.push( 'if ( attr.BufferArrayProxy ) attr = attr.getBufferArray();' );
             vertexAttributeSetup.push( 'if ( !attr.isValid() ) return;' );
-            vertexAttributeSetup.push( 'state.setVertexAttribArray(' + validAttributeIndexList[ i ] + ', attr, attr.getNormalize() );' );
+            vertexAttributeSetup.push( 'state.setVertexAttribArray(' + validAttributeIndexList[ i ] + ', attr, attr.getNormalize(), attr.getAttributeDivisor() );' );
 
         }
 
