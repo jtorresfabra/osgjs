@@ -8,11 +8,13 @@ var osgAnimationWrappers = require( 'osgWrappers/serializers/osgAnimation' );
 var osgTextWrappers = require( 'osgWrappers/serializers/osgText' );
 var Registry = require( 'osgDB/Registry' );
 var FileHelper = require( 'osgDB/FileHelper' );
+var BinaryDecoder = require( 'osgDB/BinaryDecoder' );
 
 var osgDB = {};
 osgDB.Input = Input;
 MACROUTILS.objectMix( osgDB, ReaderParser );
 osgDB.DatabasePager = DatabasePager;
+osgDB.BinaryDecoder = BinaryDecoder;
 osgDB.ObjectWrapper.serializers.osg = osgWrappers;
 osgDB.ObjectWrapper.serializers.osgAnimation = osgAnimationWrappers;
 osgDB.ObjectWrapper.serializers.osgText = osgTextWrappers;

@@ -36,7 +36,7 @@ var CompilerVertex = {
             return glPointSize;
         }
 
-        this.getNode( 'InlineCode' ).code( '%pointSize = min(64.0, max(1.0, -%size / %position.z));' ).inputs( {
+        this.getNode( 'InlineCode' ).code( '%pointSize = %size;' ).inputs( {
             position: this.getOrCreateViewVertex(),
             size: this.getOrCreateUniform( 'float', 'uPointSize' )
         } ).outputs( {
