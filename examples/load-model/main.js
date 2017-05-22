@@ -32,10 +32,6 @@ var main = function () {
         rootNode.addChild( mt );
         viewer.getManipulator().computeHomePosition();
 
-
-        var loading = document.getElementById( 'loading' );
-        document.body.removeChild( loading );
-
     } ).catch( function () {
         osg.warn( 'cant load ' + modelURL );
     } );
