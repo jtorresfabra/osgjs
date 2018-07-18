@@ -129,6 +129,16 @@ utils.createPrototypeNode(
                 this._perRangeDataList[i].loaded = false;
                 if (this._perRangeDataList[i].dbrequest !== undefined) {
                     this._perRangeDataList[i].dbrequest._groupExpired = true;
+                    this._perRangeDataList[i].dbrequest._downloading = 0;
+                    for (
+                        var h = this._perRangeDataList[i].dbrequest._xhrRequests.length - 1;
+                        h >= 0;
+                        h--
+                    ) {
+                        this._perRangeDataList[i].dbrequest._downloading++;
+                        var xhr = this._perRangeDataList[i].dbrequest._xhrRequests.pop();
+                        xhr.abort();
+                    }
                 }
             }
         },

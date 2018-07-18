@@ -279,7 +279,7 @@ var gruntTasks = {};
                     // inject a custom middleware into the array of default middlewares
                     middlewares.unshift(function(req, res, next) {
                         var ext = path.extname(req.url);
-                        if (ext === '.gz') {
+                        if (ext === '.gz' || ext === '.skt') {
                             res.setHeader('Content-Type', 'text/plain');
                             res.setHeader('Content-Encoding', 'gzip');
                         }

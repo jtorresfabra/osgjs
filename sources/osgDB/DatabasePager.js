@@ -46,9 +46,10 @@ utils.createPrototypeObject(
     'ReleaseVisitor'
 );
 
-var ExpiredPagedLODVisitor = function() {
+var ExpiredPagedLODVisitor = function(databasePager) {
     NodeVisitor.call(this, NodeVisitor.TRAVERSE_ALL_CHILDREN);
     this._childrenList = [];
+    this._databasePager = databasePager;
 };
 
 utils.createPrototypeObject(
@@ -84,6 +85,15 @@ utils.createPrototypeObject(
             for (var i = 0; i < numRanges; i++) {
                 request = plod.getDatabaseRequest(i);
                 if (request !== undefined) {
+                    request._downloading=0;
+                    for (var h = request._xhrRequests.length - 1; h >= 0; h--) {
+                        request._downloading++;
+                        var xhr = request._xhrRequests.pop();
+                        xhr.abort();
+                        this._databasePager._downloadingRequestsNumber--;
+                    }
+                    if(this._databasePager._downloadingRequestsNumber<0) 
+                        this._databasePager._downloadingRequestsNumber=0;
                     request._groupExpired = true;
                     request._loadedModel = null;
                 }
@@ -128,7 +138,7 @@ var DatabasePager = function() {
     this._maxRequestsPerFrame = 10;
     this._acceptNewRequests = true;
     this._releaseVisitor = new ReleaseVisitor();
-    this._expiredPagedLODVisitor = new ExpiredPagedLODVisitor();
+    this._expiredPagedLODVisitor = new ExpiredPagedLODVisitor(this);
     this._findPagedLODsVisitor = new FindPagedLODsVisitor();
     // In OSG the targetMaximumNumberOfPagedLOD is 300 by default
     // here we set 75 as we need to be more strict with memory in a browser
@@ -148,6 +158,7 @@ var DatabaseRequest = function() {
     this._timeStamp = 0.0;
     this._groupExpired = false;
     this._priority = 0.0;
+    this._xhrRequests = [];
 };
 
 utils.createPrototypeObject(
@@ -193,7 +204,7 @@ utils.createPrototypeObject(
             // and 0.005 ms  to add to the scene the loaded requests.
 
             // Remove expired nodes
-            this.removeExpiredSubgraphs(frameStamp, 0.0025);
+            this.removeExpiredSubgraphs(frameStamp, 0.005);
             // Time to do the requests.
             this.takeRequests();
             // Add the loaded data to the graph
@@ -240,7 +251,7 @@ utils.createPrototypeObject(
             // Prune the list of database requests.
             var elapsedTime = 0.0;
             var beginTime = Timer.instance().tick();
-            this._pendingNodes.sort(sortByTimeStamp);
+            this._pendingNodes.sort(sortByPriority);
 
             for (var i = 0; i < this._pendingNodes.length; i++) {
                 if (elapsedTime > availableTime) return 0.0;
@@ -265,7 +276,10 @@ utils.createPrototypeObject(
                 } else {
                     // Clean the request
                     request._loadedModel = undefined;
+                    if(this._downloadingRequestsNumber>0)
+                    this._downloadingRequestsNumber--;
                     request = undefined;
+
                 }
                 elapsedTime = Timer.instance().deltaS(beginTime, Timer.instance().tick());
             }
@@ -315,19 +329,26 @@ utils.createPrototypeObject(
             // Check if the request is valid;
             if (dbrequest._groupExpired) {
                 //Notify.log( 'DatabasePager::processRequest() Request expired.' );
-                that._downloadingRequestsNumber--;
+                if(this._downloadingRequestsNumber>0)
+                    this._downloadingRequestsNumber--;
                 this._loading = false;
                 return;
             }
 
             // Load from function
             if (dbrequest._function !== undefined) {
-                this.loadNodeFromFunction(dbrequest._function, dbrequest._group).then(function(
+                dbrequest._group._xhrRequests = dbrequest._xhrRequests;
+                var promise = this.loadNodeFromFunction(dbrequest._function, dbrequest._group);
+                dbrequest._promise = promise;
+                promise.then(function(
                     child
                 ) {
                     that._downloadingRequestsNumber--;
                     dbrequest._loadedModel = child;
                     that._pendingNodes.push(dbrequest);
+                    that._loading = false;
+                }).catch(function(){
+                    that._downloadingRequestsNumber--;
                     that._loading = false;
                 });
             } else if (dbrequest._url !== '') {

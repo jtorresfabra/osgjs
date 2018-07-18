@@ -1,4 +1,5 @@
 import utils from 'osg/utils';
+import BinaryDecoder from 'osgDB/BinaryDecoder';
 import Input from 'osgDB/Input';
 import ReaderParser from 'osgDB/readerParser';
 import DatabasePager from 'osgDB/DatabasePager';
@@ -11,6 +12,7 @@ import requestFile from 'osgDB/requestFile';
 import zlib from 'osgDB/zlib';
 
 var osgDB = {};
+osgDB.BinaryDecoder = BinaryDecoder;
 osgDB.Input = Input;
 utils.objectMix(osgDB, ReaderParser);
 osgDB.DatabasePager = DatabasePager;

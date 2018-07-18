@@ -383,7 +383,7 @@ utils.createPrototypeObject(
             return function(dz) {
                 var zoomSpeed = dz * this._zoomFactor;
                 vec3.sub(vectorDistance, this._pivotPoint, this._eye);
-                vec3.add(this._eye, this._eye, vec3.scale(speedDist, vectorDistance, zoomSpeed));
+                vec3.sub(this._eye, this._eye, vec3.scale(speedDist, vectorDistance, zoomSpeed));
             };
         })(),
 
@@ -475,6 +475,9 @@ utils.createPrototypeObject(
                     hits = viewer.computeIntersections(posX, posY);
 
                     if (hits.length > 0) {
+                        hits.sort(function(a, b) {
+                            return a._ratio - b._ratio;
+                        });
                         point = hits[0]._localIntersectionPoint;
                         hits[0]._nodePath.shift();
                         matrix = ComputeMatrixFromNodePath.computeLocalToWorld(hits[0]._nodePath);

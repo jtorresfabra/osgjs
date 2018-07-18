@@ -383,7 +383,7 @@ utils.createPrototypeNode(
             for (i = 0; i < l; i++) {
                 cc = children[i];
                 if (cc.referenceFrame !== TransformEnums.ABSOLUTE_RF) {
-                    bb.expandByBoundingSphere(cc.getBound());
+                    bb.expandByBoundingBox(cc.getBoundingBox());
                 }
             }
             if (!bb.valid()) return bSphere;

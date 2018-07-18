@@ -26,7 +26,8 @@ var files = {
         'split-rendering-rtt',
         'text2D',
         'texture-video',
-        'webVR'
+        'webVR',
+        'sktiles'
     ],
 
     Tutorials: [

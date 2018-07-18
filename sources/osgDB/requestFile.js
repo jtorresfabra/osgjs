@@ -5,6 +5,7 @@ var requestFileFromURL = function(url, options) {
         var req = new XMLHttpRequest();
         req.open('GET', url, true);
 
+        if (options && options.xhr) options.xhr.push(req);
         var responseType =
             options && options.responseType ? options.responseType.toLowerCase() : undefined;
 
