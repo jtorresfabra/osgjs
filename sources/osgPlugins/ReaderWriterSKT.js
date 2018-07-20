@@ -13,6 +13,7 @@ import Node from 'osg/Node';
 import BoundingBox from 'osg/BoundingBox';
 import KdTreeBuilder from 'osg/KdTreeBuilder';
 import MatrixTransform from 'osg/MatrixTransform';
+import Uniform from 'osg/Uniform';
 import { mat4 } from 'osg/glMatrix';
 
 var RANGE = 100000.0;
@@ -66,16 +67,21 @@ ReaderWriterSKT.prototype = {
             var geometry = that.readBuffers(model);
             mt.addChild(geometry);
             // console.time( 'build' );
-            var treeBuilder = new KdTreeBuilder({
+           /* var treeBuilder = new KdTreeBuilder({
                 _numVerticesProcessed: 0,
                 _targetNumTrianglesPerLeaf: 250,
                 _maxNumLevels: 10
-             });
+             });*/
             var bb = new BoundingBox();
             bb.setMin(model._header._minExtent);
             bb.setMax(model._header._maxExtent);
             geometry.setBound(bb);
-            treeBuilder.apply(geometry);
+            var minExtentUniform = Uniform.createFloat3(model._header._minExtent, 'minExtent');
+            var maxExtentUniform = Uniform.createFloat3(model._header._maxExtent, 'maxExtent');
+            geometry.getOrCreateStateSet().addUniform(minExtentUniform);
+            geometry.getOrCreateStateSet().addUniform(maxExtentUniform);
+
+            //treeBuilder.apply(geometry);
 
 
             var tileLOD = new PagedLOD();
@@ -169,29 +175,29 @@ ReaderWriterSKT.prototype = {
         var indicesSize = this._decoder.getUint32Value();
         var indices = new Uint32Array(this._decoder.decodeArray(indicesSize * 4).buffer);
         var verticesSize = this._decoder.getUint32Value() * 3.0;
-        var verticesHalf = new Uint16Array(this._decoder.decodeArray(verticesSize * 2).buffer);
+        var verticesQuantized = new Uint16Array(this._decoder.decodeArray(verticesSize * 2).buffer);
 
         var vertices = new Float32Array(verticesSize);
-        for (var i=0; i< verticesSize / 3; i++){
-            vertices[i*3] = model._header._center[0] + this._decoder.decodeFloat16(verticesHalf[i*3]);
-            vertices[i*3+1] = model._header._center[1] + this._decoder.decodeFloat16(verticesHalf[i*3+1]);
-            vertices[i*3+2] = model._header._center[2] + this._decoder.decodeFloat16(verticesHalf[i*3+2]);
-/*            vertices[i*3] = this._decoder.decodeFloat16(verticesHalf[i*3]);
-            vertices[i*3+1] = this._decoder.decodeFloat16(verticesHalf[i*3+1]);
-            vertices[i*3+2] = this._decoder.decodeFloat16(verticesHalf[i*3+2]);*/
-        }
+        var lengthX = model._header._maxExtent[0] - model._header._minExtent[0];
+        var lengthY = model._header._maxExtent[1] - model._header._minExtent[1];
+        var lengthZ = model._header._maxExtent[2] - model._header._minExtent[2];
 
+        /* for (var i=0; i< verticesSize / 3; i++){
+            vertices[i*3] = model._header._minExtent[0] + (verticesQuantized[i*3] * lengthX/ 65535);
+            vertices[i*3+1] = model._header._minExtent[1] +( verticesQuantized[i*3+1] * lengthY/ 65535);
+            vertices[i*3+2] = model._header._minExtent[2]  +( verticesQuantized[i*3 +2] * lengthZ/ 65535);
+        }*/
 
-        var normalsSize = this._decoder.getUint32Value() * 3.0;
-        var normals = new Float32Array(this._decoder.decodeArray(normalsSize * 4).buffer);
+        var normalsSize = this._decoder.getUint32Value() * 2.0;
+        var normalsQuantized = new Uint8Array(this._decoder.decodeArray(normalsSize).buffer);
 
         var colorSize = this._decoder.getUint32Value() * 3.0;
         var colors = new Uint8Array(this._decoder.decodeArray(colorSize).buffer);
 
         var geometry = new Geometry();
-        geometry.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, vertices, 3);
+        geometry.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, verticesQuantized, 3);
 
-        geometry.getAttributes().Normal = new BufferArray(BufferArray.ARRAY_BUFFER, normals, 3);
+        geometry.getAttributes().NormalsQuantized = new BufferArray(BufferArray.ARRAY_BUFFER, normalsQuantized, 2);
 
         geometry.getAttributes().Color = new BufferArray(BufferArray.ARRAY_BUFFER, colors, 3);
         geometry.getAttributes().Color.setNormalize(true);
