@@ -15,29 +15,29 @@ import KdTreeBuilder from 'osg/KdTreeBuilder';
 import MatrixTransform from 'osg/MatrixTransform';
 import Uniform from 'osg/Uniform';
 import { mat4 } from 'osg/glMatrix';
+import WorkerPool from 'osgUtil/WorkerPool';
 
 var RANGE = 100000.0;
+
+// task to run
+function WorkerTask(callback, msg) {
+    this.callback = callback;
+    this.startMessage = msg;
+};
 
 var ReaderWriterSKT = function() {
     this._decoder = new BinaryDecoder();
     this._decoder.setLittleEndian(true);
     this._geometry = undefined;
+    this._extent = [];
+    this._workerPool = new WorkerPool(6,'ReaderWorker.js');
+    this._workerPool.init();
+    this._currentPromise = undefined;
 };
 
-var SKTHeader = function() {
-    this._magic = ''; // is the ASCII string 'skfb', and can be used to identify the file as skfb tile.
-    this._version = 0; // is an uint32 that indicates the version of the Binary skt container format
-    this._tileId = new Uint16Array(4); // Tile Identifier
-    this._numTris = 0;
-    this._numChildren = 0;
-};
-
-var SKTModel = function() {
-    this._header = new SKTHeader();
-    this._children = [];
-};
 
 ReaderWriterSKT.prototype = {
+
     readNodeURL: function(url, options) {
         var self = this;
         var filePromise = requestFile(url, {
@@ -50,56 +50,70 @@ ReaderWriterSKT.prototype = {
         }
 
         return filePromise.then(function(file) {
-            return self.readTile(file);
+           return self.readTile(file);
         });
     },
 
     readTile: function(bufferArray) {
         var that = this;
+        return new P(function(resolve)
+        {
+            var message = {
+                buffer: bufferArray,
+            };
+            var task =  function(e) {
+                var model = e.data.model;
+                if(!that._extent.length)
+                {
+                    that._extent = that._extent.concat(model._header._minExtent);
+                    that._extent = that._extent.concat(model._header._maxExtent);
+                }
+                var mt = new MatrixTransform();
+                mat4.fromTranslation(mt.getMatrix(), model._header._center);
+                var geometry = new Geometry();
+                geometry.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.vertices, 3);
 
-            var model = new SKTModel();
-            that._decoder.setBuffer(bufferArray);
-            that.readHeader(model);
-            that.readChildrenInfo(bufferArray, model);
+                geometry.getAttributes().NormalsQuantized = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.normals, 2);
 
-            var mt = new MatrixTransform();
-            mat4.fromTranslation(mt.getMatrix(), model._header._center);
-            var geometry = that.readBuffers(model);
-            mt.addChild(geometry);
-            // console.time( 'build' );
-           /* var treeBuilder = new KdTreeBuilder({
-                _numVerticesProcessed: 0,
-                _targetNumTrianglesPerLeaf: 250,
-                _maxNumLevels: 10
-             });*/
-            var bb = new BoundingBox();
-            bb.setMin(model._header._minExtent);
-            bb.setMax(model._header._maxExtent);
-            geometry.setBound(bb);
-            var minExtentUniform = Uniform.createFloat3(model._header._minExtent, 'minExtent');
-            var maxExtentUniform = Uniform.createFloat3(model._header._maxExtent, 'maxExtent');
-            geometry.getOrCreateStateSet().addUniform(minExtentUniform);
-            geometry.getOrCreateStateSet().addUniform(maxExtentUniform);
-
-            //treeBuilder.apply(geometry);
-
-
-            var tileLOD = new PagedLOD();
-            if (!model._children.length) return geometry;
-
-            tileLOD._children = model._children;
-            tileLOD.addChild(geometry, 0, RANGE);
-            tileLOD.setFunction(1, that.readChildrenTiles.bind(that));
-            tileLOD.setRange(1, RANGE, Number.MAX_VALUE);
-            tileLOD.setRangeMode(PagedLOD.PIXEL_SIZE_ON_SCREEN);
-            return tileLOD;
+                geometry.getAttributes().Color = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.colors, 3);
+                geometry.getAttributes().Color.setNormalize(true);
+                var primitive = new DrawElements(
+                    primitiveSet.TRIANGLES,
+                    new BufferArray(BufferArray.ELEMENT_ARRAY_BUFFER, e.data.indices, 1)
+                );
+                geometry.getPrimitives().push(primitive);
+                mt.addChild(geometry);
+                var bb = new BoundingBox();
+                var extent =  that.getExtentFromTileId(model._header._tileId);
+                bb.setMin(extent.slice(0,3));
+                bb.setMax(extent.slice(3));
+                geometry.setBound(bb);
+                var minExtentUniform = Uniform.createFloat3(model._header._minExtent, 'minExtent');
+                var maxExtentUniform = Uniform.createFloat3(model._header._maxExtent, 'maxExtent');
+                geometry.getOrCreateStateSet().addUniform(minExtentUniform);
+                geometry.getOrCreateStateSet().addUniform(maxExtentUniform);
+                var tileLOD =  new PagedLOD();
+                tileLOD._children = model._children;
+                tileLOD._name = model._header._tileId;
+                tileLOD.addChild(geometry, 0, RANGE);
+                tileLOD.setFunction(1, that.readChildrenTiles.bind(that));
+                tileLOD.setRange(1, RANGE, Number.MAX_VALUE);
+                tileLOD.setRangeMode(PagedLOD.PIXEL_SIZE_ON_SCREEN);
+                if (!model._children.length) tileLOD = geometry;
+                resolve(tileLOD);
+            };
+            var workerTask = new WorkerTask(task, message);
+            that._workerPool.addWorkerTask(workerTask);
+        });
     },
+
 
     readChildrenTiles: function(parent) {
         var group = new Node();
         var children = parent._children;
         var numChilds = children.length;
         var promises = [];
+        this._currentPromise = promises;
         var createTile = function(tileURI, rw) {
             return rw
                 .readNodeURL(rw._databasePath + tileURI, { xhr: parent._xhrRequests })
@@ -110,7 +124,7 @@ ReaderWriterSKT.prototype = {
         // we need to read all the childrens
 
         for (var i = 0; i < numChilds; i++) {
-            promises.push(createTile(this.getRelativeTileName(children[i]), this));
+            promises[i] = createTile(this.getRelativeTileName(children[i]), this);
         }
         return P.all(promises).then(function(){
             return group;
@@ -219,7 +233,30 @@ ReaderWriterSKT.prototype = {
         tileName += 'Y' + tileId[2] + '_';
         tileName += 'Z' + tileId[3] + '.skt';
         return tileName;
-    }
+    },
+
+    getExtentFromTileId: function(tileId) {
+
+        var numTiles = Math.max(1.0, 1 << tileId[0]);
+        var tileExtent =[];
+
+        var lengthX = this._extent[3] -this._extent[0];
+        var lengthY = this._extent[4] -this._extent[1];
+        var lengthZ = this._extent[5] -this._extent[2];
+
+        tileExtent[0] = this._extent[0] + tileId[1]*(lengthX)/numTiles;
+        tileExtent[1] = this._extent[1] + tileId[2]*(lengthY)/numTiles;
+        tileExtent[2] = this._extent[2] + tileId[3]*(lengthZ)/numTiles;
+
+        tileExtent[3] = tileExtent[0] + lengthX/numTiles;
+        tileExtent[4] = tileExtent[1] + lengthY/numTiles;
+        tileExtent[5] = tileExtent[2] + lengthZ/numTiles;
+        return tileExtent;
+    },
+
+
+
+
 };
 
 Registry.instance().addReaderWriter('skt', new ReaderWriterSKT());
