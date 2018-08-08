@@ -161,9 +161,9 @@ utils.createPrototypeNode(
 
                 switch (traversalMode) {
                     case NodeVisitor.TRAVERSE_ALL_CHILDREN:
-                        for (var index = 0; index < this.children.length; index++) {
-                            this.children[index].accept(visitor);
-                        }
+                        //for (var index = 0; index < this.children.length; index++) {
+                            this.children[this.children.length-1].accept(visitor);
+                        //}
                         break;
 
                     case NodeVisitor.TRAVERSE_ACTIVE_CHILDREN:

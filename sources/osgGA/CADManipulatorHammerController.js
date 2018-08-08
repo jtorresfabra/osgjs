@@ -15,6 +15,13 @@ utils.createPrototypeObject(
                 this,
                 InputGroups.CAD_MANIPULATOR_TOUCH
             );
+           /* var manager = this._manipulator.getInputManager();
+            manager.group(InputGroups.CAD_MANIPULATOR_TOUCH).addMappings(
+                {
+                     doubleTap: ['doubletap', 'doubletap2fingers']
+                },
+                this
+            );*/
         },
 
         startMotion: function(interpolator, factor, ev) {
@@ -25,6 +32,13 @@ utils.createPrototypeObject(
                 ev
             );
             this._manipulator.computeIntersections(ev.glX, ev.glY);
+        },
+        doubleTap: function (ev) {
+            var manipulator = this._manipulator;
+            manipulator.getZoomInterpolator().set( 0.0 );
+            var zoomTarget = manipulator.getZoomInterpolator().getTarget()[ 0 ] - 10; // Default interval 10
+            manipulator.getZoomInterpolator().setTarget( zoomTarget );
+            manipulator.computeIntersections( ev.glX, ev.glY );
         }
     })
 );

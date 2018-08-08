@@ -12,23 +12,20 @@ var WorkerThread = function(parentPool) {
 
 
 WorkerThread.prototype = {
-
+    dummyCallback : function(event) {
+                // pass to original callback
+        this.workerTask.callback(event);
+                // we should use a seperate thread to add the worker
+        this.parentPool.freeWorkerThread(this);
+    },
     // for now assume we only get a single callback from a worker
     // which also indicates the end of this worker.
     init: function(){
-        var self = this;
-        var dummyCallback = function(event) {
-                // pass to original callback
-                self.workerTask.callback(event);
-                // we should use a seperate thread to add the worker
-                self.parentPool.freeWorkerThread(self);
-        };
-        this.worker.addEventListener('message', dummyCallback, false);
+        this.worker.addEventListener('message', this.dummyCallback.bind(this), false);
     },
 
     run : function(workerTask) {
         this.workerTask = workerTask;
-        // create a new web worker
         this.worker.postMessage(workerTask.startMessage, [workerTask.startMessage.buffer]);
     }
 };

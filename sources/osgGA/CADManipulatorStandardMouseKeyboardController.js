@@ -30,7 +30,7 @@ utils.createPrototypeObject(
         },
 
         zoom: function(ev) {
-            var intDelta = -ev.deltaY / this._zoomFactor;
+            var intDelta = ev.deltaY / this._zoomFactor;
             var manipulator = this._manipulator;
             var zoomTarget = manipulator.getZoomInterpolator().getTarget()[0] - intDelta;
             manipulator.getZoomInterpolator().setTarget(zoomTarget);
@@ -50,6 +50,14 @@ utils.createPrototypeObject(
         savePosition: function(ev) {
             this._lastX = ev.glX;
             this._lastY = ev.glY;
+        },
+
+        dblclick: function ( ev ) {
+            var manipulator = this._manipulator;
+            manipulator.getZoomInterpolator().set( 0.0 );
+            var zoomTarget = manipulator.getZoomInterpolator().getTarget()[ 0 ] - ZOOM_OFFSET; // Default interval 10
+            manipulator.getZoomInterpolator().setTarget( zoomTarget );
+            manipulator.computeIntersections( ev.glX, ev.glY );
         },
 
         setMode: function(mode, interpolator, ev) {

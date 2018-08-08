@@ -35,29 +35,29 @@ GLObject.prototype = {
 GLObject._sResourcesArrayCache = new window.Map();
 
 GLObject.addObject = function(gl, glObject) {
-    if (!GLObject._sResourcesArrayCache.has(gl)) GLObject._sResourcesArrayCache.set(gl, []);
+    /*if (!GLObject._sResourcesArrayCache.has(gl)) GLObject._sResourcesArrayCache.set(gl, []);
     var resourcesArray = GLObject._sResourcesArrayCache.get(gl);
 
     if (resourcesArray.indexOf(glObject) !== -1) return;
-    resourcesArray.push(glObject);
+    resourcesArray.push(glObject);*/
 };
 
 GLObject.removeObject = function(gl, glObject) {
-    if (!GLObject._sResourcesArrayCache.has(gl)) return;
+   /* if (!GLObject._sResourcesArrayCache.has(gl)) return;
 
     var resourcesArray = GLObject._sResourcesArrayCache.get(gl);
     var i = resourcesArray.indexOf(glObject);
     if (i === -1) return;
-    resourcesArray.splice(i, 1);
+    resourcesArray.splice(i, 1);*/
 };
 
 GLObject.onLostContext = function(gl) {
-    if (!GLObject._sResourcesArrayCache.has(gl)) return;
+    /*if (!GLObject._sResourcesArrayCache.has(gl)) return;
 
     var resourcesArray = GLObject._sResourcesArrayCache.get(gl);
     for (var i = 0, l = resourcesArray.length; i < l; i++) {
         resourcesArray[i].onLostContext();
-    }
+    }*/
 };
 
 export default GLObject;

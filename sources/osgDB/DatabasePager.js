@@ -186,7 +186,7 @@ utils.createPrototypeObject(
             this._activePagedLODList.clear();
             this._childrenToRemoveList.clear();
             this._downloadingRequestsNumber = 0;
-            this._maxRequestsPerFrame = 10;
+            this._maxRequestsPerFrame = 1;
             this._acceptNewRequests = true;
             this._targetMaximumNumberOfPagedLOD = 75;
         },
@@ -388,7 +388,10 @@ utils.createPrototypeObject(
             // We need to test if we have time to flush
             this._elapsedTime = 0.0;
             this._beginTime = Timer.instance().tick();
-            this._childrenToRemoveList.forEach(this._releaseExpiredSubgraphs, this);
+            for (var node of this._childrenToRemoveList)
+            {
+                this._releaseExpiredSubgraphs(node);
+            }
             this._availableTime -= this._elapsedTime;
             return this._availableTime;
         },
@@ -433,7 +436,7 @@ utils.createPrototypeObject(
             var expiredPagedLODVisitor = this._expiredPagedLODVisitor;
             expiredPagedLODVisitor.reset();
 
-            this._activePagedLODList.forEach(function(plod) {
+            for (var plod of this._activePagedLODList) {
                 // Check if we have time, else return 0
                 if (elapsedTime > availableTime) return 0.0;
                 if (numToPrune < 0) return availableTime;
@@ -456,7 +459,7 @@ utils.createPrototypeObject(
                 expiredPagedLODVisitor._childrenList.length = 0;
                 removedChildren.length = 0;
                 elapsedTime = Timer.instance().deltaS(beginTime, Timer.instance().tick());
-            });
+            };
             availableTime -= elapsedTime;
             return availableTime;
         }

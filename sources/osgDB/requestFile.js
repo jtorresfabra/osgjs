@@ -1,31 +1,32 @@
+'use strict';
+
 import P from 'bluebird';
 
+var loadFn = function(req, resolve) {
+    if (req.responseType === 'arraybuffer' || req.responseType === 'blob')
+        resolve(req.response);
+    else resolve(req.responseText);
+};
+
+
+var resolver = function(url, options, resolve, reject) {
+    var req = new XMLHttpRequest();
+    req.open('GET', url, true);
+    if (options && options.xhr) options.xhr.push(req);
+    var responseType =
+        options && options.responseType ? options.responseType.toLowerCase() : undefined;
+    // handle responseType
+    if (responseType) req.responseType = responseType;
+    if (options && options.progress) {
+        req.addEventListener('progress', options.progress, false);
+    }
+    req.addEventListener('error', reject, false);
+    req.addEventListener('load', loadFn.bind(null, req, resolve));
+    req.send(null);
+}
+
 var requestFileFromURL = function(url, options) {
-    return new P(function(resolve, reject) {
-        var req = new XMLHttpRequest();
-        req.open('GET', url, true);
-
-        if (options && options.xhr) options.xhr.push(req);
-        var responseType =
-            options && options.responseType ? options.responseType.toLowerCase() : undefined;
-
-        // handle responseType
-        if (responseType) req.responseType = responseType;
-
-        if (options && options.progress) {
-            req.addEventListener('progress', options.progress, false);
-        }
-
-        req.addEventListener('error', reject, false);
-
-        req.addEventListener('load', function() {
-            if (req.responseType === 'arraybuffer' || req.responseType === 'blob')
-                resolve(req.response);
-            else resolve(req.responseText);
-        });
-
-        req.send(null);
-    });
+    return new P(resolver.bind(null, url, options));
 };
 
 var requestFileFromReader = function(file, options) {

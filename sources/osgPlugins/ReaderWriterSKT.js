@@ -12,12 +12,12 @@ import PagedLOD from 'osg/PagedLOD';
 import Node from 'osg/Node';
 import BoundingBox from 'osg/BoundingBox';
 import KdTreeBuilder from 'osg/KdTreeBuilder';
-import MatrixTransform from 'osg/MatrixTransform';
 import Uniform from 'osg/Uniform';
-import { mat4 } from 'osg/glMatrix';
+import { vec3, mat4 } from 'osg/glMatrix';
 import WorkerPool from 'osgUtil/WorkerPool';
+import Shape from 'osg/shape';
 
-var RANGE = 100000.0;
+var RANGE = 160000.0;
 
 // task to run
 function WorkerTask(callback, msg) {
@@ -54,58 +54,73 @@ ReaderWriterSKT.prototype = {
         });
     },
 
-    readTile: function(bufferArray) {
+    readTile:  (function() {
+        var minExtent = vec3.create32();
+        var maxExtent = vec3.create32();
+        var center = vec3.create32();
+        return function(bufferArray) {
         var that = this;
-        return new P(function(resolve)
-        {
-            var message = {
-                buffer: bufferArray,
-            };
-            var task =  function(e) {
-                var model = e.data.model;
-                if(!that._extent.length)
-                {
-                    that._extent = that._extent.concat(model._header._minExtent);
-                    that._extent = that._extent.concat(model._header._maxExtent);
-                }
-                var mt = new MatrixTransform();
-                mat4.fromTranslation(mt.getMatrix(), model._header._center);
-                var geometry = new Geometry();
-                geometry.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.vertices, 3);
+            return new P(function(resolve)
+            {
+                var message = {
+                    buffer: bufferArray,
+                };
+                var task =  function(e) {
+                    var model = e.data.model;
+                    if(!that._extent.length)
+                    {
+                        that._extent = that._extent.concat(model._header._minExtent);
+                        that._extent = that._extent.concat(model._header._maxExtent);
+                    }
+                    var geometry = new Geometry();
 
-                geometry.getAttributes().NormalsQuantized = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.normals, 2);
+                    geometry.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.vertices, 3);
 
-                geometry.getAttributes().Color = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.colors, 3);
-                geometry.getAttributes().Color.setNormalize(true);
-                var primitive = new DrawElements(
-                    primitiveSet.TRIANGLES,
-                    new BufferArray(BufferArray.ELEMENT_ARRAY_BUFFER, e.data.indices, 1)
-                );
-                geometry.getPrimitives().push(primitive);
-                mt.addChild(geometry);
-                var bb = new BoundingBox();
-                var extent =  that.getExtentFromTileId(model._header._tileId);
-                bb.setMin(extent.slice(0,3));
-                bb.setMax(extent.slice(3));
-                geometry.setBound(bb);
-                var minExtentUniform = Uniform.createFloat3(model._header._minExtent, 'minExtent');
-                var maxExtentUniform = Uniform.createFloat3(model._header._maxExtent, 'maxExtent');
-                geometry.getOrCreateStateSet().addUniform(minExtentUniform);
-                geometry.getOrCreateStateSet().addUniform(maxExtentUniform);
-                var tileLOD =  new PagedLOD();
-                tileLOD._children = model._children;
-                tileLOD._name = model._header._tileId;
-                tileLOD.addChild(geometry, 0, RANGE);
-                tileLOD.setFunction(1, that.readChildrenTiles.bind(that));
-                tileLOD.setRange(1, RANGE, Number.MAX_VALUE);
-                tileLOD.setRangeMode(PagedLOD.PIXEL_SIZE_ON_SCREEN);
-                if (!model._children.length) tileLOD = geometry;
-                resolve(tileLOD);
-            };
-            var workerTask = new WorkerTask(task, message);
-            that._workerPool.addWorkerTask(workerTask);
-        });
-    },
+                    geometry.getAttributes().NormalsQuantized = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.normals, 2);
+
+                    geometry.getAttributes().Color = new BufferArray(BufferArray.ARRAY_BUFFER, e.data.colors, 3);
+                    geometry.getAttributes().Color.setNormalize(true);
+                    var primitive = new DrawElements(
+                        primitiveSet.TRIANGLES,
+                        new BufferArray(BufferArray.ELEMENT_ARRAY_BUFFER, e.data.indices, 1)
+                    );
+                    geometry.getPrimitives().push(primitive);
+                    var bb = new BoundingBox();
+                    that.getExtentFromTileId(model._header._tileId, minExtent, maxExtent);
+
+                    bb.setMin(minExtent);
+                    bb.setMax(maxExtent);
+
+                    var bbcenter = bb.center(center);
+                    var bbcube = Shape.createBoxGeometry(bbcenter[0], bbcenter[1],bbcenter[2], bb.lengthX(), bb.lengthY(), bb.lengthZ());
+                    bbcube.setNodeMask(0x01);
+                    geometry.setBound(bb);
+                    geometry.setNodeMask(0x02);
+                    var group = new Node();
+                    group.addChild(geometry);
+                    group.addChild(bbcube);
+                    //group.setBoundingBox(bb);
+                    var minExtentUniform = Uniform.createFloat3(model._header._minExtent, 'minExtent');
+                    var maxExtentUniform = Uniform.createFloat3(model._header._maxExtent, 'maxExtent');
+                    geometry.getOrCreateStateSet().addUniform(minExtentUniform);
+                    geometry.getOrCreateStateSet().addUniform(maxExtentUniform);
+                    var tileLOD =  new PagedLOD();
+                    tileLOD._children = model._children;
+                    tileLOD._name = model._header._tileId;
+                    tileLOD.addChild(group, 0, RANGE);
+                    tileLOD.setFunction(1, that.readChildrenTiles.bind(that));
+                    tileLOD.setRange(1, RANGE, Number.MAX_VALUE);
+                    tileLOD.setRangeMode(PagedLOD.PIXEL_SIZE_ON_SCREEN);
+                    //precalculate bounding sphere
+                    tileLOD.getBound();
+                    if (!model._children.length) tileLOD = geometry;
+                    resolve(tileLOD);
+                };
+                var workerTask = new WorkerTask(task, message);
+                that._workerPool.addWorkerTask(workerTask);
+            });
+        };
+    })(),
 
 
     readChildrenTiles: function(parent) {
@@ -235,27 +250,21 @@ ReaderWriterSKT.prototype = {
         return tileName;
     },
 
-    getExtentFromTileId: function(tileId) {
+    getExtentFromTileId: function(tileId, minExtent, maxExtent) {
 
         var numTiles = Math.max(1.0, 1 << tileId[0]);
-        var tileExtent =[];
-
         var lengthX = this._extent[3] -this._extent[0];
         var lengthY = this._extent[4] -this._extent[1];
         var lengthZ = this._extent[5] -this._extent[2];
 
-        tileExtent[0] = this._extent[0] + tileId[1]*(lengthX)/numTiles;
-        tileExtent[1] = this._extent[1] + tileId[2]*(lengthY)/numTiles;
-        tileExtent[2] = this._extent[2] + tileId[3]*(lengthZ)/numTiles;
+        minExtent[0] = this._extent[0] + tileId[1]*(lengthX)/numTiles;
+        minExtent[1] = this._extent[1] + tileId[2]*(lengthY)/numTiles;
+        minExtent[2] = this._extent[2] + tileId[3]*(lengthZ)/numTiles;
 
-        tileExtent[3] = tileExtent[0] + lengthX/numTiles;
-        tileExtent[4] = tileExtent[1] + lengthY/numTiles;
-        tileExtent[5] = tileExtent[2] + lengthZ/numTiles;
-        return tileExtent;
+        maxExtent[0] = minExtent[0] + lengthX/numTiles;
+        maxExtent[1] = minExtent[1] + lengthY/numTiles;
+        maxExtent[2] = minExtent[2] + lengthZ/numTiles;
     },
-
-
-
 
 };
 

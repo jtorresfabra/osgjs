@@ -273,7 +273,7 @@ var gruntTasks = {};
             options: {
                 port: 9000,
                 directory: currentDirectory,
-                hostname: 'localhost',
+                hostname: '0.0.0.0',
                 open: true,
                 middleware: function(connect, options, middlewares) {
                     // inject a custom middleware into the array of default middlewares

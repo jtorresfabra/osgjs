@@ -1,3 +1,3 @@
 export default {
-    ArrayType: Float64Array
+    ArrayType: Float32Array
 };

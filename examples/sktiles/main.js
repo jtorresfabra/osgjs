@@ -36,7 +36,7 @@
 
                 'uniform mat4 uModelViewMatrix;',
                 'uniform mat4 uProjectionMatrix;',
-                'varying vec4 vModelVertex;',
+                //'varying vec4 vModelVertex;',
                 'varying vec4 vVertexColor;',
                 'void main(void) {',
                 '  vec3 length = maxExtent - minExtent;',
@@ -45,7 +45,6 @@
                 '  position.y = minExtent.y +(Vertex.y * length.y/65535.);',
                 '  position.z = minExtent.z +(Vertex.z * length.z/65535.);',
                 '  gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(position,1.0);',
-                '  vModelVertex = uModelViewMatrix * vec4(Vertex,1.0);',
                 '  vVertexColor = Color;',
                 '}'
             ].join('\n');
@@ -56,7 +55,7 @@
                 '#ifdef GL_ES',
                 'precision highp float;',
                 '#endif',
-                'varying vec4 vModelVertex;',
+                //'varying vec4 vModelVertex;',
                 'varying vec4 vVertexColor;',
 
                 'void main(void) {',
@@ -92,22 +91,29 @@
                 osg.mat4.fromRotation(mt.getMatrix(), Math.PI / 2.0, osg.vec3.fromValues(0, 0, 1));
                 mt.addChild(tiledmodel);
                 self._rootNode.addChild(mt);
+
                 //self._rootNode.addChild(tiledmodel);
                 var cadManipulator = new osgGA.CADManipulator({
                     inputManager: self._viewer.getInputManager()
                 });
                 self._viewer.setupManipulator(cadManipulator);
+
+                
+                self._viewer.getCamera()
+                   .getRenderer()
+                   .getCullVisitor().setTraversalMask(~0x01);
                 var bs = tiledmodel.getBound();
-                self._viewer.getManipulator().setDistance(bs.radius() * 1.5);
                 self._viewer.getManipulator().computeHomePosition();
+
             });
 
             this._viewer.getDatabasePager().setMaxRequestsPerFrame(1);
-            this._viewer
+            /*      this._viewer
                     .getCamera()
                     .getRenderer()
                     .getCullVisitor()
-                    .setLODScale(0.5);
+                    .setLODScale(0.5);*/
+
             var that = this;
             this._canvas.addEventListener('mousedown', function() {
                 that._viewer.getDatabasePager().setAcceptNewDatabaseRequests(false);

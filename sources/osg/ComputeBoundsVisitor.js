@@ -50,10 +50,10 @@ utils.createPrototypeObject(
         },
 
         apply: function(node) {
-            if (node instanceof Transform) {
+            if (node.referenceFrame) {
                 this.applyTransform(node);
                 return;
-            } else if (node instanceof Geometry) {
+            } else if (node._vao) {
                 this.applyBoundingBox(node.getBoundingBox());
                 return;
             }

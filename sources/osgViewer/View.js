@@ -213,6 +213,7 @@ View.prototype = {
 
         if (!this._lsi) {
             this._lsi = new LineSegmentIntersector();
+            //this._lsi.setIntersectionLimit(1);
         } else {
             this._lsi.reset();
         }

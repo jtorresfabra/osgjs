@@ -154,6 +154,18 @@ utils.createPrototypeObject(
             return this._min[2];
         },
 
+        lengthX: function(){
+            return this._max[0] - this._min[0];
+        },
+
+        lengthY: function(){
+            return this._max[1] - this._min[1];
+        },
+
+        lengthZ: function(){
+            return this._max[2] - this._min[2];
+        },
+
         corner: function(pos, ret) {
             /*jshint bitwise: false */
             if (pos & 1) {

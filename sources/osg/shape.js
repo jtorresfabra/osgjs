@@ -310,6 +310,152 @@ var createTexturedBoxGeometry = function(cx, cy, cz, sx, sy, sz) {
     return g;
 };
 
+/**
+ * Create a Textured Box on the given center with given size
+ * @name createTexturedBox
+ */
+var createBoxGeometry = function(cx, cy, cz, sx, sy, sz) {
+    var centerx = cx !== undefined ? cx : 0.0;
+    var centery = cy !== undefined ? cy : 0.0;
+    var centerz = cz !== undefined ? cz : 0.0;
+
+    var sizex = sx !== undefined ? sx : 1.0;
+    var sizey = sy !== undefined ? sy : 1.0;
+    var sizez = sz !== undefined ? sz : 1.0;
+
+    var g = new Geometry();
+    var dx, dy, dz;
+    dx = sizex / 2.0;
+    dy = sizey / 2.0;
+    dz = sizez / 2.0;
+
+    var vertexes = new utils.Float32Array(72);
+    // -ve y plane
+    vertexes[0] = centerx - dx;
+    vertexes[1] = centery - dy;
+    vertexes[2] = centerz + dz;
+    vertexes[3] = centerx - dx;
+    vertexes[4] = centery - dy;
+    vertexes[5] = centerz - dz;
+    vertexes[6] = centerx + dx;
+    vertexes[7] = centery - dy;
+    vertexes[8] = centerz - dz;
+    vertexes[9] = centerx + dx;
+    vertexes[10] = centery - dy;
+    vertexes[11] = centerz + dz;
+    vertexes[12] = centerx + dx;
+    vertexes[13] = centery + dy;
+    vertexes[14] = centerz + dz;
+    vertexes[15] = centerx + dx;
+    vertexes[16] = centery + dy;
+    vertexes[17] = centerz - dz;
+    vertexes[18] = centerx - dx;
+    vertexes[19] = centery + dy;
+    vertexes[20] = centerz - dz;
+    vertexes[21] = centerx - dx;
+    vertexes[22] = centery + dy;
+    vertexes[23] = centerz + dz;
+    vertexes[24] = centerx + dx;
+    vertexes[25] = centery - dy;
+    vertexes[26] = centerz + dz;
+    vertexes[27] = centerx + dx;
+    vertexes[28] = centery - dy;
+    vertexes[29] = centerz - dz;
+    vertexes[30] = centerx + dx;
+    vertexes[31] = centery + dy;
+    vertexes[32] = centerz - dz;
+    vertexes[33] = centerx + dx;
+    vertexes[34] = centery + dy;
+    vertexes[35] = centerz + dz;
+    vertexes[36] = centerx - dx;
+    vertexes[37] = centery + dy;
+    vertexes[38] = centerz + dz;
+    vertexes[39] = centerx - dx;
+    vertexes[40] = centery + dy;
+    vertexes[41] = centerz - dz;
+    vertexes[42] = centerx - dx;
+    vertexes[43] = centery - dy;
+    vertexes[44] = centerz - dz;
+    vertexes[45] = centerx - dx;
+    vertexes[46] = centery - dy;
+    vertexes[47] = centerz + dz;
+    vertexes[48] = centerx - dx;
+    vertexes[49] = centery + dy;
+    vertexes[50] = centerz + dz;
+    vertexes[51] = centerx - dx;
+    vertexes[52] = centery - dy;
+    vertexes[53] = centerz + dz;
+    vertexes[54] = centerx + dx;
+    vertexes[55] = centery - dy;
+    vertexes[56] = centerz + dz;
+    vertexes[57] = centerx + dx;
+    vertexes[58] = centery + dy;
+    vertexes[59] = centerz + dz;
+    vertexes[60] = centerx + dx;
+    vertexes[61] = centery + dy;
+    vertexes[62] = centerz - dz;
+    vertexes[63] = centerx + dx;
+    vertexes[64] = centery - dy;
+    vertexes[65] = centerz - dz;
+    vertexes[66] = centerx - dx;
+    vertexes[67] = centery - dy;
+    vertexes[68] = centerz - dz;
+    vertexes[69] = centerx - dx;
+    vertexes[70] = centery + dy;
+    vertexes[71] = centerz - dz;
+    var indexes = new utils.Uint16Array(36);
+    indexes[0] = 0;
+    indexes[1] = 1;
+    indexes[2] = 2;
+    indexes[3] = 0;
+    indexes[4] = 2;
+    indexes[5] = 3;
+
+    indexes[6] = 4;
+    indexes[7] = 5;
+    indexes[8] = 6;
+    indexes[9] = 4;
+    indexes[10] = 6;
+    indexes[11] = 7;
+
+    indexes[12] = 8;
+    indexes[13] = 9;
+    indexes[14] = 10;
+    indexes[15] = 8;
+    indexes[16] = 10;
+    indexes[17] = 11;
+
+    indexes[18] = 12;
+    indexes[19] = 13;
+    indexes[20] = 14;
+    indexes[21] = 12;
+    indexes[22] = 14;
+    indexes[23] = 15;
+
+    indexes[24] = 16;
+    indexes[25] = 17;
+    indexes[26] = 18;
+    indexes[27] = 16;
+    indexes[28] = 18;
+    indexes[29] = 19;
+
+    indexes[30] = 20;
+    indexes[31] = 21;
+    indexes[32] = 22;
+    indexes[33] = 20;
+    indexes[34] = 22;
+    indexes[35] = 23;
+
+    g.getAttributes().Vertex = new BufferArray(BufferArray.ARRAY_BUFFER, vertexes, 3);
+
+    var primitive = new DrawElements(
+        primitiveSet.TRIANGLES,
+        new BufferArray(BufferArray.ELEMENT_ARRAY_BUFFER, indexes, 1)
+    );
+    g.getPrimitives().push(primitive);
+    return g;
+};
+
 // better perf
 // no more pixel shader hurt for nothing
 // http://michaldrobot.com/2014/04/01/gcn-execution-patterns-in-full-screen-passes/
@@ -824,6 +970,7 @@ var createBoundingBoxGeometry = function(col) {
 
 export default {
     createTexturedBoxGeometry: createTexturedBoxGeometry,
+    createBoxGeometry: createBoxGeometry,
     createTexturedQuadGeometry: createTexturedQuadGeometry,
     createTexturedSphereGeometry: createTexturedSphere,
     createTexturedFullScreenFakeQuadGeometry: createTexturedFullScreenFakeQuadGeometry,
