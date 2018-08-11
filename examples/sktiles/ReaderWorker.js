@@ -79,9 +79,9 @@ onmessage = function(event)
     var vertices = new Uint16Array(decoder.decodeArray(verticesSize * 2).buffer);
 
 
-    var normalsSize = decoder.getUint32Value() * 2.0;
+    /*var normalsSize = decoder.getUint32Value() * 2.0;
     var normalsQuantized = new Uint8Array(decoder.decodeArray(normalsSize).buffer);
-
+*/
     var colorSize = decoder.getUint32Value() * 3.0;
     var colors = new Uint8Array(decoder.decodeArray(colorSize).buffer);
 
@@ -90,15 +90,15 @@ onmessage = function(event)
         model : model,
         indices: indices,
         vertices: vertices,
-        normals: normalsQuantized,
+        //normals: normalsQuantized,
         colors: colors
     };
 
     var transferables = [];
     transferables[0] = indices.buffer;
     transferables[1] = vertices.buffer;
-    transferables[2] = normalsQuantized.buffer;
-    transferables[3] = colors.buffer;
+    transferables[2] = colors.buffer;
+    //transferables[2] = normalsQuantized.buffer;
 
     postMessage(message, transferables);
 

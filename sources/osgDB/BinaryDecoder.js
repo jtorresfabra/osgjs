@@ -80,7 +80,7 @@ BinaryDecoder.prototype = {
         return array;
     },
 
-    decodeFloat16(value) {
+    decodeFloat16: function(value) {
         var exponent = (value & 0x7C00) >> 10,
             fraction = value & 0x03FF;
         return (value >> 15 ? -1 : 1) * (

@@ -135,7 +135,7 @@ var DatabasePager = function() {
     this._activePagedLODList = new Set();
     this._childrenToRemoveList = new Set();
     this._downloadingRequestsNumber = 0;
-    this._maxRequestsPerFrame = 10;
+    this._maxRequestsPerFrame = 1;
     this._acceptNewRequests = true;
     this._releaseVisitor = new ReleaseVisitor();
     this._expiredPagedLODVisitor = new ExpiredPagedLODVisitor(this);
@@ -186,7 +186,7 @@ utils.createPrototypeObject(
             this._activePagedLODList.clear();
             this._childrenToRemoveList.clear();
             this._downloadingRequestsNumber = 0;
-            this._maxRequestsPerFrame = 1;
+            this._maxRequestsPerFrame = 4;
             this._acceptNewRequests = true;
             this._targetMaximumNumberOfPagedLOD = 75;
         },
@@ -204,11 +204,11 @@ utils.createPrototypeObject(
             // and 0.005 ms  to add to the scene the loaded requests.
 
             // Remove expired nodes
-            this.removeExpiredSubgraphs(frameStamp, 0.005);
+            this.removeExpiredSubgraphs(frameStamp, 0.007);
             // Time to do the requests.
             this.takeRequests();
             // Add the loaded data to the graph
-            this.addLoadedDataToSceneGraph(frameStamp, 0.005);
+            this.addLoadedDataToSceneGraph(frameStamp, 0.0015);
         },
 
         executeProgressCallback: function() {
@@ -388,10 +388,7 @@ utils.createPrototypeObject(
             // We need to test if we have time to flush
             this._elapsedTime = 0.0;
             this._beginTime = Timer.instance().tick();
-            for (var node of this._childrenToRemoveList)
-            {
-                this._releaseExpiredSubgraphs(node);
-            }
+            this._childrenToRemoveList.forEach(this._releaseExpiredSubgraphs, this);
             this._availableTime -= this._elapsedTime;
             return this._availableTime;
         },
@@ -436,7 +433,7 @@ utils.createPrototypeObject(
             var expiredPagedLODVisitor = this._expiredPagedLODVisitor;
             expiredPagedLODVisitor.reset();
 
-            for (var plod of this._activePagedLODList) {
+            this._activePagedLODList.forEach(function(plod) {
                 // Check if we have time, else return 0
                 if (elapsedTime > availableTime) return 0.0;
                 if (numToPrune < 0) return availableTime;
@@ -459,7 +456,7 @@ utils.createPrototypeObject(
                 expiredPagedLODVisitor._childrenList.length = 0;
                 removedChildren.length = 0;
                 elapsedTime = Timer.instance().deltaS(beginTime, Timer.instance().tick());
-            };
+            });
             availableTime -= elapsedTime;
             return availableTime;
         }

@@ -17,7 +17,7 @@ import { vec3, mat4 } from 'osg/glMatrix';
 import WorkerPool from 'osgUtil/WorkerPool';
 import Shape from 'osg/shape';
 
-var RANGE = 160000.0;
+var RANGE = 150000.0;
 
 // task to run
 function WorkerTask(callback, msg) {
@@ -55,16 +55,15 @@ ReaderWriterSKT.prototype = {
     },
 
     readTile:  (function() {
-        var minExtent = vec3.create32();
-        var maxExtent = vec3.create32();
         var center = vec3.create32();
         return function(bufferArray) {
-        var that = this;
+            var that = this;
+            var message = {
+                buffer: bufferArray,
+            };
             return new P(function(resolve)
             {
-                var message = {
-                    buffer: bufferArray,
-                };
+
                 var task =  function(e) {
                     var model = e.data.model;
                     if(!that._extent.length)
@@ -86,10 +85,10 @@ ReaderWriterSKT.prototype = {
                     );
                     geometry.getPrimitives().push(primitive);
                     var bb = new BoundingBox();
-                    that.getExtentFromTileId(model._header._tileId, minExtent, maxExtent);
+                    //that.getExtentFromTileId(model._header._tileId, minExtent, maxExtent);
 
-                    bb.setMin(minExtent);
-                    bb.setMax(maxExtent);
+                    bb.setMin(model._header._minExtent);
+                    bb.setMax(model._header._maxExtent);
 
                     var bbcenter = bb.center(center);
                     var bbcube = Shape.createBoxGeometry(bbcenter[0], bbcenter[1],bbcenter[2], bb.lengthX(), bb.lengthY(), bb.lengthZ());
@@ -121,7 +120,6 @@ ReaderWriterSKT.prototype = {
             });
         };
     })(),
-
 
     readChildrenTiles: function(parent) {
         var group = new Node();
